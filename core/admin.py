@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Template, SystemConfig
+from .models import Template, SystemConfig, SetupStatus
 
 
 @admin.register(SystemConfig)
@@ -42,3 +42,18 @@ class TemplateAdmin(admin.ModelAdmin):
     list_display = ['name', 'description', 'created_at']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(SetupStatus)
+class SetupStatusAdmin(admin.ModelAdmin):
+    """Admin för setup-status"""
+    list_display = ['is_completed', 'completed_at']
+    readonly_fields = ['completed_at']
+
+    def has_add_permission(self, request):
+        """Förhindra att fler än en instans skapas"""
+        return not SetupStatus.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Förhindra borttagning"""
+        return False

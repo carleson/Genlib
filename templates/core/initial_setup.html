@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initial installation - Genlib</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .setup-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .setup-header h1 {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .setup-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .form-section {
+            border-left: 4px solid #667eea;
+            padding-left: 20px;
+            margin-bottom: 30px;
+        }
+        .form-section h3 {
+            color: #764ba2;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .nav-pills .nav-link {
+            border-radius: 10px;
+            font-weight: 500;
+            padding: 12px 20px;
+        }
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-pills .nav-link:not(.active) {
+            background: #f8f9fa;
+            color: #667eea;
+        }
+        .nav-pills .nav-link:not(.active):hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="setup-container">
+            <div class="setup-header">
+                <i class="bi bi-gear-fill setup-icon"></i>
+                <h1>Välkommen till Genlib!</h1>
+                <p class="text-muted">Låt oss konfigurera din installation</p>
+            </div>
+
+            {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+
+                <!-- Val mellan nytt projekt eller restore -->
+                <div class="mb-4">
+                    <ul class="nav nav-pills nav-fill mb-4" id="setupTypeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="new-tab" data-bs-toggle="pill"
+                                    data-bs-target="#new-project" type="button" role="tab"
+                                    aria-controls="new-project" aria-selected="true"
+                                    onclick="document.getElementById('id_setup_type_0').checked = true;">
+                                <i class="bi bi-plus-circle-fill"></i> Nytt projekt
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="restore-tab" data-bs-toggle="pill"
+                                    data-bs-target="#restore-backup" type="button" role="tab"
+                                    aria-controls="restore-backup" aria-selected="false"
+                                    onclick="document.getElementById('id_setup_type_1').checked = true;">
+                                <i class="bi bi-arrow-counterclockwise"></i> Återställ backup
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Hidden radio buttons for setup_type -->
+                    <div style="display: none;">
+                        {% for choice in form.setup_type %}
+                            {{ choice }}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="tab-content" id="setupTypeContent">
+                    <!-- Nytt projekt tab -->
+                    <div class="tab-pane fade show active" id="new-project" role="tabpanel" aria-labelledby="new-tab">
+                        <!-- Admin-konto -->
+                        <div class="form-section">
+                            <h3><i class="bi bi-person-fill-gear"></i> Administratörskonto</h3>
+                            <p class="text-muted small">Skapa det första användarkontot med administratörsbehörighet.</p>
+
+                            <div class="mb-3">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    {{ form.username.label }}
+                                </label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.username.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.username.help_text }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    {{ form.email.label }}
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.email.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.email.help_text }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    {{ form.password.label }}
+                                </label>
+                                {{ form.password }}
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.password.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.password.help_text }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
+                                    {{ form.password_confirm.label }}
+                                </label>
+                                {{ form.password_confirm }}
+                                {% if form.password_confirm.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.password_confirm.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                            <!-- Media-katalog -->
+                            <div class="form-section">
+                                <h3><i class="bi bi-folder-fill"></i> Media-bibliotek</h3>
+                                <p class="text-muted small">Ange var du vill lagra dokument och bilder.</p>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.media_directory_path.id_for_label }}" class="form-label">
+                                        {{ form.media_directory_path.label }}
+                                    </label>
+                                    {{ form.media_directory_path }}
+                                    {% if form.media_directory_path.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.media_directory_path.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">{{ form.media_directory_path.help_text }}</div>
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle-fill"></i>
+                                    <strong>Tips:</strong> Du kan ändra dessa inställningar senare via admin-panelen.
+                                </div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle-fill"></i> Skapa nytt projekt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restore backup tab -->
+                    <div class="tab-pane fade" id="restore-backup" role="tabpanel" aria-labelledby="restore-tab">
+                        <div class="form-section">
+                            <h3><i class="bi bi-archive-fill"></i> Återställ från backup</h3>
+                            <p class="text-muted small">Ladda upp en tidigare skapad backup-fil för att återställa systemet.</p>
+
+                            <div class="mb-3">
+                                <label for="{{ form.backup_file.id_for_label }}" class="form-label">
+                                    {{ form.backup_file.label }}
+                                </label>
+                                {{ form.backup_file }}
+                                {% if form.backup_file.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.backup_file.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.backup_file.help_text }}</div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <strong>Viktigt:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Backup-filen måste vara en giltig ZIP-fil från Genlib</li>
+                                    <li>Alla användare och data från backupen återställs</li>
+                                    <li>Du kan logga in med ditt befintliga konto efter återställning</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-arrow-counterclockwise"></i> Återställ backup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="text-white">
+                <small>Genlib - Släktforskningshantering &copy; 2024</small>
+            </p>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

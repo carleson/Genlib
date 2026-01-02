@@ -72,3 +72,49 @@ class Template(models.Model):
     def get_directories_list(self):
         """Returnera lista av kataloger"""
         return [d.strip() for d in self.directories.split('\n') if d.strip()]
+
+
+class SetupStatus(models.Model):
+    """Singleton modell för att spåra initial setup-status"""
+    is_completed = models.BooleanField(
+        default=False,
+        verbose_name="Setup klar",
+        help_text="Indikerar om initial setup är genomförd"
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Slutförd",
+        help_text="När setup slutfördes"
+    )
+
+    class Meta:
+        verbose_name = "Setup-status"
+        verbose_name_plural = "Setup-status"
+
+    def __str__(self):
+        return f"Setup: {'Klar' if self.is_completed else 'Ej klar'}"
+
+    def save(self, *args, **kwargs):
+        """Säkerställ att det endast finns en instans"""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Förhindra borttagning"""
+        pass
+
+    @classmethod
+    def load(cls):
+        """Hämta eller skapa setup-status"""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @classmethod
+    def is_setup_complete(cls):
+        """Kontrollera om setup är genomförd"""
+        try:
+            return cls.load().is_completed
+        except Exception:
+            # Om databasen inte är initierad returnera False
+            return False

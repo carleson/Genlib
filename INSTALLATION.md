@@ -1,6 +1,6 @@
 # Genlib - Installationsguide
 
-## Snabbstart
+## Snabbstart (Automatisk setup)
 
 ### 1. Installera beroenden
 
@@ -10,41 +10,65 @@ Projektet använder `uv` som pakethanterare. Om du inte har uv installerat:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. Kör migrationer och setup
+### 2. Starta servern (första gången)
 
 ```bash
-# Skapa databastabeller
+./run_server.sh
+```
+
+Det är allt! Scriptet kommer automatiskt att:
+- Installera beroenden
+- Köra databasmigrationer
+- Starta utvecklingsservern
+
+### 3. Web-baserad initial setup
+
+När du kör servern första gången kommer du automatiskt att omdirigeras till setup-sidan:
+
+**http://localhost:8000/setup/**
+
+På setup-sidan har du **två alternativ**:
+
+#### Alternativ 1: Nytt projekt
+- ✅ Skapa ditt administratörskonto (superuser)
+- ✅ Konfigurera var media-filer ska lagras
+  - Kan vara absolut sökväg (t.ex. `/home/user/genlib-media`)
+  - Eller relativ sökväg (t.ex. `media`)
+- Efter setup loggas du automatiskt in och redirectas till dashboard
+
+#### Alternativ 2: Återställ från backup
+- ✅ Ladda upp en tidigare skapad backup-fil (ZIP)
+- ✅ Alla användare, personer, dokument och inställningar återställs
+- ✅ Du kan sedan logga in med ditt befintliga konto
+- Perfekt för att flytta installation till ny server eller återställa efter problem
+
+### 4. Framtida körningar
+
+När setup är klar, kör bara:
+
+```bash
+./run_server.sh
+```
+
+Du kommer direkt till inloggningssidan.
+
+## Alternativ: Manuell setup (avancerat)
+
+Om du föredrar att köra setup manuellt:
+
+```bash
+# Kör migrationer
 uv run python manage.py migrate
 
-# Skapa fördefinierade mallar och dokumenttyper
+# Skapa fördefinierade mallar och dokumenttyper (valfritt)
 uv run python manage.py setup_initial_data
-```
 
-### 3. Skapa en superuser
-
-```bash
+# Skapa superuser
 uv run python manage.py createsuperuser
-```
 
-Följ instruktionerna för att skapa ett admin-konto.
-
-### 4. Starta utvecklingsservern
-
-```bash
-# Alternativ 1: Använd skriptet
-./run_server.sh
-
-# Alternativ 2: Direkt
+# Starta servern
 uv run python manage.py runserver
 ```
-
-Öppna din webbläsare och gå till: **http://localhost:8000**
-
-## Första inloggningen
-
-1. Gå till http://localhost:8000
-2. Klicka på "Registrera" för att skapa ett användarkonto
-3. Eller använd superuser-kontot du skapade
 
 ## Django Admin
 
