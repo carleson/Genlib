@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ object.filename }} - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i> {{ object.filename }}
+                </h2>
+                <div>
+                    <a href="{% url 'persons:detail' object.person.id %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Tillbaka
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Formulär för att visa och redigera -->
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.filename.id_for_label }}" class="form-label fw-bold">Filnamn</label>
+                        {{ form.filename }}
+                        {% if form.filename.errors %}
+                        <div class="text-danger">{{ form.filename.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Visa och redigera filinnehåll för textfiler -->
+                    {% if is_text_file %}
+                    <div class="mb-3">
+                        <label for="{{ form.file_content.id_for_label }}" class="form-label fw-bold">
+                            Källinformation
+                        </label>
+                        {{ form.file_content }}
+                        <div class="form-text">Textinnehåll från filen - redigera direkt här</div>
+                        {% if form.file_content.errors %}
+                        <div class="text-danger">{{ form.file_content.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% elif is_pdf %}
+                    <!-- Visa PDF i iframe -->
+                    <div class="mb-4">
+                        <h5 class="mb-3"><i class="bi bi-file-earmark-pdf"></i> PDF Förhandsgranskning</h5>
+                        <iframe src="{{ object.file.url }}" width="100%" height="600px" class="border rounded"></iframe>
+                        <div class="mt-2">
+                            <a href="{{ object.file.url }}" class="btn btn-sm btn-primary" download>
+                                <i class="bi bi-download"></i> Ladda ner PDF
+                            </a>
+                        </div>
+                    </div>
+                    {% elif is_image %}
+                    <!-- Visa bilder -->
+                    <div class="mb-4">
+                        <h5 class="mb-3"><i class="bi bi-image"></i> Bild</h5>
+                        <img src="{{ object.file.url }}" alt="{{ object.filename }}" class="img-fluid border rounded" style="max-height: 600px;">
+                        <div class="mt-2">
+                            <a href="{{ object.file.url }}" class="btn btn-sm btn-primary" download>
+                                <i class="bi bi-download"></i> Ladda ner bild
+                            </a>
+                        </div>
+                    </div>
+                    {% elif object.file %}
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-info-circle"></i> Filtyp {{ object.file_type|upper }} kan inte redigeras eller förhandsgranskas.
+                        <a href="{{ object.file.url }}" class="btn btn-sm btn-primary ms-2" download>
+                            <i class="bi bi-download"></i> Ladda ner
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-4">
+                        <i class="bi bi-exclamation-triangle"></i> Ingen fil bifogad till detta dokument.
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.tags.id_for_label }}" class="form-label fw-bold">Taggar</label>
+                        {{ form.tags }}
+                        <div class="form-text">Kommaseparerad lista, t.ex. "födelse, folkräkning, 1850"</div>
+                        {% if form.tags.errors %}
+                        <div class="text-danger">{{ form.tags.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'persons:detail' object.person.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check"></i> {% if is_text_file %}Spara fil och metadata{% else %}Spara metadata{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

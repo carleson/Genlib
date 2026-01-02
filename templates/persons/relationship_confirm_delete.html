@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Ta bort relation - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h2 class="mb-0"><i class="bi bi-trash"></i> Bekräfta borttagning</h2>
+            </div>
+            <div class="card-body">
+                <p class="lead">Är du säker på att du vill ta bort denna relation?</p>
+
+                <div class="alert alert-warning">
+                    <strong>Relation:</strong><br>
+                    {{ object.person_a.get_full_name }} ({{ object.get_relationship_a_to_b_display }})
+                    <i class="bi bi-arrow-left-right"></i>
+                    {{ object.person_b.get_full_name }} ({{ object.get_relationship_b_to_a_display }})
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'persons:detail' person.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Ta bort relation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

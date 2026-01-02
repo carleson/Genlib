@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}Kronologisk rapport - {{ person.get_full_name }} - Genlib{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-calendar3"></i> Kronologisk rapport</h1>
+    <a href="{% url 'persons:detail' person.id %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Tillbaka
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">{{ person.get_full_name }}</h4>
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Födelsedatum:</dt>
+            <dd class="col-sm-9">{{ person.birth_date|date:"Y-m-d"|default:"-" }}</dd>
+
+            <dt class="col-sm-3">Dödsdatum:</dt>
+            <dd class="col-sm-9">{{ person.death_date|date:"Y-m-d"|default:"-" }}</dd>
+
+            <dt class="col-sm-3">Antal källor:</dt>
+            <dd class="col-sm-9"><span class="badge bg-info">{{ total_documents }}</span></dd>
+        </dl>
+    </div>
+</div>
+
+{% if total_documents > 0 %}
+    {% for year, docs in documents_by_year.items %}
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ year }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% for doc in docs %}
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                <i class="bi bi-file-earmark-text text-primary"></i>
+                                {{ doc.filename }}
+                            </h6>
+                            <p class="text-muted small mb-1">
+                                <strong>Typ:</strong> {{ doc.document_type.name }}
+                                {% if doc.file_type %}
+                                | <strong>Format:</strong> {{ doc.file_type|upper }}
+                                {% endif %}
+                                {% if doc.file_modified_at %}
+                                | <strong>Datum:</strong> {{ doc.file_modified_at|date:"Y-m-d H:i" }}
+                                {% elif doc.created_at %}
+                                | <strong>Tillagd:</strong> {{ doc.created_at|date:"Y-m-d H:i" }}
+                                {% endif %}
+                            </p>
+                            {% if doc.tags %}
+                            <p class="small mb-0">
+                                <i class="bi bi-tags"></i> {{ doc.tags }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <a href="{% url 'documents:view' doc.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Visa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if undated_documents %}
+    <div class="card mb-3">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Odaterade källor</h5>
+        </div>
+        <div class="card-body">
+            {% for doc in undated_documents %}
+            <div class="mb-3 pb-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            <i class="bi bi-file-earmark-text text-secondary"></i>
+                            {{ doc.filename }}
+                        </h6>
+                        <p class="text-muted small mb-1">
+                            <strong>Typ:</strong> {{ doc.document_type.name }}
+                            {% if doc.tags %}
+                            | <i class="bi bi-tags"></i> {{ doc.tags }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="ms-3">
+                        <a href="{% url 'documents:view' doc.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> Visa
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Inga dokument har lagts till för denna person ännu.
+    </div>
+{% endif %}
+
+<div class="text-end mt-4">
+    <button onclick="window.print()" class="btn btn-outline-primary">
+        <i class="bi bi-printer"></i> Skriv ut rapport
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .btn, nav, footer { display: none; }
+    .card { border: 1px solid #dee2e6; page-break-inside: avoid; }
+}
+</style>
+{% endblock %}

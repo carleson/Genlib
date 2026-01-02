@@ -1,0 +1,7 @@
+- Koppla inloggad person till person i trädet
+- Fixa trasig Utloggning
+- Fixa summeringen av checklistan i personbilden, stämmer inte
+- Kontrollera backup/restore så att de fortfarande fungerar
+- Checklista bild i huvdmenyn - filtrera
+
+

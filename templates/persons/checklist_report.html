@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Checklistrapport - Genlib{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-bar-chart"></i> Checklistrapport</h1>
+    <a href="{% url 'persons:list' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Tillbaka till personer
+    </a>
+</div>
+
+<!-- Övergripande statistik -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-primary">{{ total_persons }}</h3>
+                <p class="text-muted mb-0">Totalt personer</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-success">{{ total_completed }}</h3>
+                <p class="text-muted mb-0">Avklarade objekt</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-info">{{ total_checklist_items }}</h3>
+                <p class="text-muted mb-0">Totalt checklistobjekt</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter efter specifikt objekt -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filtrera efter specifikt objekt</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <label for="item_title" class="form-label">Välj checklistobjekt</label>
+                <select name="item_title" id="item_title" class="form-select">
+                    <option value="">-- Välj objekt --</option>
+                    {% for item in available_items %}
+                    <option value="{{ item }}" {% if item == item_title_filter %}selected{% endif %}>
+                        {{ item }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="filter_status"
+                           value="has" id="status_has"
+                           {% if filter_status == 'has' %}checked{% endif %}>
+                    <label class="form-check-label" for="status_has">
+                        Har avklarat
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="filter_status"
+                           value="lacks" id="status_lacks"
+                           {% if filter_status == 'lacks' %}checked{% endif %}>
+                    <label class="form-check-label" for="status_lacks">
+                        Saknar
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-search"></i> Sök
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'persons:checklist_report' %}" class="btn btn-secondary w-100 mb-2">
+                    <i class="bi bi-x-circle"></i> Rensa
+                </a>
+            </div>
+        </form>
+        {% if item_title_filter and filter_status %}
+        <div class="alert alert-info mt-3 mb-0">
+            <i class="bi bi-info-circle"></i>
+            Visar personer som
+            <strong>{% if filter_status == 'has' %}har avklarat{% else %}saknar{% endif %}</strong>
+            objektet: <strong>{{ item_title_filter }}</strong>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tabell med framsteg per person -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Framsteg per person</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Person</th>
+                        <th>Totalt objekt</th>
+                        <th>Avklarade</th>
+                        <th>Framsteg</th>
+                        <th>Åtgärder</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person in filtered_persons|default:persons %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'persons:detail' person.id %}">
+                                {{ person.get_full_name }}
+                            </a>
+                        </td>
+                        <td>{{ person.total_items }}</td>
+                        <td>{{ person.completed_items }}</td>
+                        <td>
+                            {% if person.total_items > 0 %}
+                                {% widthratio person.completed_items person.total_items 100 as percentage %}
+                                <div class="progress" style="height: 20px; width: 150px;">
+                                    <div class="progress-bar {% if percentage == 100 %}bg-success{% elif percentage >= 50 %}bg-info{% else %}bg-warning{% endif %}"
+                                         role="progressbar"
+                                         style="width: {{ percentage }}%;">
+                                        {{ percentage }}%
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'persons:checklist' person.id %}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-list-check"></i> Visa checklista
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            Inga personer hittades.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

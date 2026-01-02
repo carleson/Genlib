@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Redigera{% else %}Ny{% endif %} person - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    {% if object %}
+                    <i class="bi bi-pencil"></i> Redigera person
+                    {% else %}
+                    <i class="bi bi-person-plus"></i> Ny person
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.firstname.id_for_label }}" class="form-label fw-bold">Förnamn</label>
+                            {{ form.firstname }}
+                            {% if form.firstname.errors %}
+                            <div class="text-danger">{{ form.firstname.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.surname.id_for_label }}" class="form-label fw-bold">Efternamn</label>
+                            {{ form.surname }}
+                            {% if form.surname.errors %}
+                            <div class="text-danger">{{ form.surname.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.birth_date.id_for_label }}" class="form-label fw-bold">Födelsedatum</label>
+                            {{ form.birth_date }}
+                            {% if form.birth_date.errors %}
+                            <div class="text-danger">{{ form.birth_date.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.death_date.id_for_label }}" class="form-label fw-bold">Dödsdatum</label>
+                            {{ form.death_date }}
+                            {% if form.death_date.errors %}
+                            <div class="text-danger">{{ form.death_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.directory_name.id_for_label }}" class="form-label fw-bold">
+                            Katalognamn <span class="text-danger">*</span>
+                        </label>
+                        {{ form.directory_name }}
+                        <div class="form-text">Genereras automatiskt från förnamn, efternamn och födelsedatum.</div>
+                        {% if form.directory_name.errors %}
+                        <div class="text-danger">{{ form.directory_name.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.template_used.id_for_label }}" class="form-label fw-bold">Mall för katalogstruktur</label>
+                        {{ form.template_used }}
+                        {% if form.template_used.errors %}
+                        <div class="text-danger">{{ form.template_used.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-bold">Anteckningar</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <div class="text-danger">{{ form.notes.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if object %}{% url 'persons:detail' object.id %}{% else %}{% url 'persons:list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check"></i> Spara
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const firstnameInput = document.getElementById('id_firstname');
+    const surnameInput = document.getElementById('id_surname');
+    const birthDateInput = document.getElementById('id_birth_date');
+    const directoryNameInput = document.getElementById('id_directory_name');
+
+    function generateDirectoryName() {
+        const firstname = firstnameInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+        const surname = surnameInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+        const birthDate = birthDateInput.value; // Format: YYYY-MM-DD
+
+        let directoryName = '';
+
+        if (firstname && surname) {
+            directoryName = firstname + '_' + surname;
+        } else if (firstname) {
+            directoryName = firstname;
+        } else if (surname) {
+            directoryName = surname;
+        }
+
+        if (birthDate) {
+            directoryName = directoryName ? directoryName + '_' + birthDate : birthDate;
+        }
+
+        directoryNameInput.value = directoryName;
+    }
+
+    // Uppdatera katalognamnet när någon av fälten ändras
+    firstnameInput.addEventListener('input', generateDirectoryName);
+    surnameInput.addEventListener('input', generateDirectoryName);
+    birthDateInput.addEventListener('change', generateDirectoryName);
+
+    // Generera katalognamn vid sidladdning om fälten har värden
+    generateDirectoryName();
+});
+</script>
+
+{% endblock %}

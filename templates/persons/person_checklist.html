@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}Checklista - {{ person.get_full_name }} - Genlib{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-check2-square"></i> Checklista - {{ person.get_full_name }}</h1>
+    <div>
+        <a href="{% url 'persons:checklist_item_create' person.id %}" class="btn btn-success">
+            <i class="bi bi-plus"></i> Lägg till anpassat objekt
+        </a>
+        <a href="{% url 'persons:detail' person.id %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Tillbaka
+        </a>
+    </div>
+</div>
+
+<!-- Framsteg översikt -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5>Framsteg</h5>
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar bg-success" role="progressbar"
+                 style="width: {{ completion_percentage }}%;"
+                 aria-valuenow="{{ completion_percentage }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                {{ completion_percentage }}% ({{ completed_items }}/{{ total_items }})
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="category" class="form-label">Kategori</label>
+                <select name="category" id="category" class="form-select">
+                    <option value="">Alla kategorier</option>
+                    {% for code, name in categories %}
+                        <option value="{{ code }}" {% if current_category == code %}selected{% endif %}>
+                            {{ name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">Alla</option>
+                    <option value="completed" {% if current_status == "completed" %}selected{% endif %}>Avklarade</option>
+                    <option value="incomplete" {% if current_status == "incomplete" %}selected{% endif %}>Ej avklarade</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Filtrera</button>
+                <a href="{% url 'persons:checklist' person.id %}" class="btn btn-outline-secondary">Rensa</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Checklistobjekt per kategori -->
+{% for category_name, items in items_by_category.items %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">{{ category_name }}</h5>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for item in items %}
+        <div class="list-group-item">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <div class="form-check">
+                        <input class="form-check-input checklist-toggle"
+                               type="checkbox"
+                               data-item-id="{{ item.id }}"
+                               {% if item.is_completed %}checked{% endif %}>
+                    </div>
+                </div>
+                <div class="col">
+                    <h6 class="mb-1 {% if item.is_completed %}text-decoration-line-through text-muted{% endif %}">
+                        {{ item.title }}
+                        {% if item.is_custom %}
+                            <span class="badge bg-info">Anpassad</span>
+                        {% endif %}
+                        {% if item.priority == 'HIGH' %}
+                            <span class="badge bg-warning">Hög prioritet</span>
+                        {% elif item.priority == 'CRITICAL' %}
+                            <span class="badge bg-danger">Kritisk</span>
+                        {% endif %}
+                    </h6>
+                    {% if item.description %}
+                        <p class="mb-1 text-muted small">{{ item.description }}</p>
+                    {% endif %}
+                    {% if item.notes %}
+                        <p class="mb-0 text-primary small"><i class="bi bi-sticky"></i> {{ item.notes }}</p>
+                    {% endif %}
+                    {% if item.completed_at %}
+                        <small class="text-success">
+                            <i class="bi bi-check-circle"></i> Avklarad {{ item.completed_at|date:"Y-m-d H:i" }}
+                        </small>
+                    {% endif %}
+                </div>
+                <div class="col-auto">
+                    {% if item.is_custom %}
+                        <a href="{% url 'persons:checklist_item_update' item.id %}"
+                           class="btn btn-sm btn-outline-primary" title="Redigera">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'persons:checklist_item_delete' item.id %}"
+                           class="btn btn-sm btn-outline-danger" title="Ta bort">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% empty %}
+<div class="alert alert-info">
+    Inga checklistobjekt hittades.
+    <a href="{% url 'persons:checklist_item_create' person.id %}">Lägg till det första objektet!</a>
+</div>
+{% endfor %}
+
+<!-- AJAX Toggle Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.checklist-toggle');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const itemId = this.dataset.itemId;
+            const csrfToken = '{{ csrf_token }}';
+
+            fetch(`/persons/checklist-item/${itemId}/toggle/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Ladda om sidan för att uppdatera UI
+                    location.reload();
+                } else {
+                    alert('Fel: ' + (data.error || 'Kunde inte uppdatera'));
+                    checkbox.checked = !checkbox.checked;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ett fel uppstod');
+                checkbox.checked = !checkbox.checked;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

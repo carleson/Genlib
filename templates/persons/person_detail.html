@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ person.get_full_name }} - Genlib{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ person.get_full_name }}</h1>
+    <div>
+        <a href="{% url 'persons:update' person.id %}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Redigera
+        </a>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-tools"></i> Verktyg
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#renameModal">
+                    <i class="bi bi-pencil-square"></i> Döp om person
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'persons:duplicate' person.id %}">
+                    <i class="bi bi-files"></i> Duplicera person
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'persons:export' person.id %}">
+                    <i class="bi bi-download"></i> Exportera data
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'persons:chronological_report' person.id %}">
+                    <i class="bi bi-calendar3"></i> Kronologisk rapport
+                </a></li>
+            </ul>
+        </div>
+        <a href="{% url 'persons:delete' person.id %}" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Ta bort
+        </a>
+        <a href="{% url 'persons:list' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Tillbaka
+        </a>
+    </div>
+</div>
+
+<!-- Personinformation -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-person"></i> Personuppgifter
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Förnamn:</dt>
+                    <dd class="col-sm-9">{{ person.firstname|default:"-" }}</dd>
+
+                    <dt class="col-sm-3">Efternamn:</dt>
+                    <dd class="col-sm-9">{{ person.surname|default:"-" }}</dd>
+
+                    <dt class="col-sm-3">Födelsedatum:</dt>
+                    <dd class="col-sm-9">{{ person.birth_date|date:"Y-m-d"|default:"-" }}</dd>
+
+                    <dt class="col-sm-3">Dödsdatum:</dt>
+                    <dd class="col-sm-9">{{ person.death_date|date:"Y-m-d"|default:"-" }}</dd>
+
+                    <dt class="col-sm-3">Katalognamn:</dt>
+                    <dd class="col-sm-9"><code>{{ person.directory_name }}</code></dd>
+
+                    <dt class="col-sm-3">Katalogsökväg:</dt>
+                    <dd class="col-sm-9"><code class="text-primary">{{ person.get_full_directory_path }}</code></dd>
+
+                    <dt class="col-sm-3">Mall använd:</dt>
+                    <dd class="col-sm-9">{{ person.template_used.name|default:"-" }}</dd>
+
+                    <dt class="col-sm-3">Skapad:</dt>
+                    <dd class="col-sm-9">{{ person.created_at|date:"Y-m-d H:i" }}</dd>
+
+                    <dt class="col-sm-3">Uppdaterad:</dt>
+                    <dd class="col-sm-9">{{ person.updated_at|date:"Y-m-d H:i" }}</dd>
+                </dl>
+
+                {% if person.notes %}
+                <hr>
+                <h5>Anteckningar:</h5>
+                <p class="text-muted">{{ person.notes|linebreaks }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> Statistik
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Dokument:</dt>
+                    <dd class="col-sm-6 text-end">
+                        <span class="badge bg-info">{{ total_documents }}</span>
+                    </dd>
+
+                    <dt class="col-sm-6">Total storlek:</dt>
+                    <dd class="col-sm-6 text-end">{{ total_size|filesizeformat }}</dd>
+
+                    <dt class="col-sm-6">Relationer:</dt>
+                    <dd class="col-sm-6 text-end">
+                        <span class="badge bg-success">{{ total_relationships }}</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checklista -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-check2-square"></i> Checklista</span>
+        <a href="{% url 'persons:checklist' person.id %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-list-check"></i> Visa fullständig checklista
+        </a>
+    </div>
+    <div class="card-body">
+        {% if total_checklist_items > 0 %}
+            {% widthratio completed_checklist_items total_checklist_items 100 as percentage %}
+            <div class="progress mb-2" style="height: 25px;">
+                <div class="progress-bar bg-success" role="progressbar"
+                     style="width: {{ percentage }}%;"
+                     aria-valuenow="{{ percentage }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                    {{ percentage }}%
+                </div>
+            </div>
+            <p class="text-muted mb-0">
+                {{ completed_checklist_items }} av {{ total_checklist_items }} objekt avklarade
+            </p>
+        {% else %}
+            <p class="text-muted mb-0">Ingen checklista har lagts till ännu.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Relationships -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-diagram-3"></i> Relationer</span>
+        <a href="{% url 'persons:relationship_create' person.id %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus"></i> Lägg till relation
+        </a>
+    </div>
+    <div class="card-body">
+        {% if total_relationships > 0 %}
+            <div class="row">
+                {% if relationships_grouped.parents %}
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted mb-2"><i class="bi bi-arrow-up-circle"></i> Föräldrar</h6>
+                    <ul class="list-group">
+                        {% for related_person, rel in relationships_grouped.parents %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'persons:detail' related_person.id %}" class="text-decoration-none">
+                                {{ related_person.get_full_name }}
+                            </a>
+                            <a href="{% url 'persons:relationship_delete' rel.id %}"
+                               class="btn btn-sm btn-outline-danger" title="Ta bort relation">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if relationships_grouped.children %}
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted mb-2"><i class="bi bi-arrow-down-circle"></i> Barn</h6>
+                    <ul class="list-group">
+                        {% for related_person, rel in relationships_grouped.children %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'persons:detail' related_person.id %}" class="text-decoration-none">
+                                {{ related_person.get_full_name }}
+                            </a>
+                            <a href="{% url 'persons:relationship_delete' rel.id %}"
+                               class="btn btn-sm btn-outline-danger" title="Ta bort relation">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if relationships_grouped.spouses %}
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted mb-2"><i class="bi bi-heart"></i> Make/Maka</h6>
+                    <ul class="list-group">
+                        {% for related_person, rel in relationships_grouped.spouses %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'persons:detail' related_person.id %}" class="text-decoration-none">
+                                {{ related_person.get_full_name }}
+                            </a>
+                            <a href="{% url 'persons:relationship_delete' rel.id %}"
+                               class="btn btn-sm btn-outline-danger" title="Ta bort relation">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if relationships_grouped.siblings %}
+                <div class="col-md-6 mb-3">
+                    <h6 class="text-muted mb-2"><i class="bi bi-people"></i> Syskon</h6>
+                    <ul class="list-group">
+                        {% for related_person, rel in relationships_grouped.siblings %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'persons:detail' related_person.id %}" class="text-decoration-none">
+                                {{ related_person.get_full_name }}
+                            </a>
+                            <a href="{% url 'persons:relationship_delete' rel.id %}"
+                               class="btn btn-sm btn-outline-danger" title="Ta bort relation">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">
+                Inga relationer ännu. <a href="{% url 'persons:relationship_create' person.id %}">Lägg till den första relationen!</a>
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Dokument -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-text"></i> Dokument</span>
+        <a href="{% url 'documents:create' %}?person={{ person.id }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus"></i> Lägg till dokument
+        </a>
+    </div>
+    <div class="card-body">
+        {% if documents %}
+            {% if documents_by_type %}
+                {% for type_name, docs in documents_by_type.items %}
+                <h5 class="mt-3 mb-2">{{ type_name }}</h5>
+                <div class="list-group mb-3">
+                    {% for doc in docs %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    {{ doc.filename }}
+                                    {% if not doc.file %}
+                                    <span class="badge bg-warning text-dark">Ingen fil</span>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">
+                                    {% if doc.file_type %}
+                                    <span class="badge bg-secondary">{{ doc.file_type|upper }}</span>
+                                    {% endif %}
+                                    {% if doc.file %}
+                                    {{ doc.get_file_size_display }}
+                                    {% endif %}
+                                    {% if doc.tags %}
+                                    <br>Taggar: {{ doc.tags|truncatewords:10 }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{% url 'documents:view' doc.id %}" class="btn btn-sm btn-primary" title="Öppna">
+                                    <i class="bi bi-eye"></i> Öppna
+                                </a>
+                                {% if doc.file %}
+                                <a href="{% url 'documents:download' doc.id %}" class="btn btn-sm btn-success" title="Ladda ner">
+                                    <i class="bi bi-download"></i> Ladda ner
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'documents:delete' doc.id %}" class="btn btn-sm btn-danger" title="Ta bort">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% else %}
+        <p class="text-muted mb-0">
+            Inga dokument ännu. <a href="{% url 'documents:create' %}?person={{ person.id }}">Lägg till det första dokumentet!</a>
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Döp om person -->
+<div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'persons:rename' person.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="renameModalLabel">Döp om person</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Varning:</strong> Detta kommer att döpa om katalogen i filsystemet.
+                    </div>
+                    <div class="mb-3">
+                        <label for="rename_firstname" class="form-label fw-bold">Förnamn</label>
+                        <input type="text" name="firstname" class="form-control"
+                               value="{{ person.firstname }}" id="rename_firstname">
+                    </div>
+                    <div class="mb-3">
+                        <label for="rename_surname" class="form-label fw-bold">Efternamn</label>
+                        <input type="text" name="surname" class="form-control"
+                               value="{{ person.surname }}" id="rename_surname">
+                    </div>
+                    <div class="mb-3">
+                        <label for="rename_directory_name" class="form-label fw-bold">Nytt katalognamn (genereras automatiskt)</label>
+                        <input type="text" name="new_directory_name" class="form-control"
+                               readonly id="rename_directory_name">
+                    </div>
+                    <div class="form-text">
+                        <strong>Nuvarande katalog:</strong> <code>{{ person.directory_name }}</code>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Avbryt</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-pencil-square"></i> Döp om
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-generera katalognamn i rename modal
+document.addEventListener('DOMContentLoaded', function() {
+    const firstnameInput = document.getElementById('rename_firstname');
+    const surnameInput = document.getElementById('rename_surname');
+    const directoryNameInput = document.getElementById('rename_directory_name');
+    const birthDate = '{{ person.birth_date|date:"Y-m-d"|default:"" }}';
+
+    function generateDirectoryName() {
+        const firstname = firstnameInput.value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[åä]/g, 'a').replace(/ö/g, 'o');
+        const surname = surnameInput.value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[åä]/g, 'a').replace(/ö/g, 'o');
+
+        let directoryName = '';
+        if (firstname && surname) {
+            directoryName = firstname + '_' + surname;
+        } else if (firstname) {
+            directoryName = firstname;
+        } else if (surname) {
+            directoryName = surname;
+        }
+
+        if (birthDate) {
+            directoryName = directoryName ? directoryName + '_' + birthDate : birthDate;
+        }
+
+        directoryNameInput.value = directoryName;
+    }
+
+    if (firstnameInput && surnameInput) {
+        firstnameInput.addEventListener('input', generateDirectoryName);
+        surnameInput.addEventListener('input', generateDirectoryName);
+        // Generera initialt värde
+        generateDirectoryName();
+    }
+});
+</script>
+{% endblock %}

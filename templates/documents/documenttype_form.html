@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Redigera{% else %}Ny{% endif %} dokumenttyp - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    {% if object %}
+                    <i class="bi bi-pencil"></i> Redigera dokumenttyp
+                    {% else %}
+                    <i class="bi bi-plus"></i> Ny dokumenttyp
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">
+                            Namn/ID <span class="text-danger">*</span>
+                        </label>
+                        {{ form.name }}
+                        <div class="form-text">T.ex. "personbevis", "folkrakning1970"</div>
+                        {% if form.name.errors %}
+                        <div class="text-danger">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.target_directory.id_for_label }}" class="form-label">
+                            Målkatalog <span class="text-danger">*</span>
+                        </label>
+                        {{ form.target_directory }}
+                        <div class="form-text">Relativ sökväg, t.ex. "dokument" eller "dokument/födelse"</div>
+                        {% if form.target_directory.errors %}
+                        <div class="text-danger">{{ form.target_directory.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.filename.id_for_label }}" class="form-label">
+                            Filnamn <span class="text-danger">*</span>
+                        </label>
+                        {{ form.filename }}
+                        <div class="form-text">Standard filnamn, t.ex. "Sveriges befolkning 1970.txt"</div>
+                        {% if form.filename.errors %}
+                        <div class="text-danger">{{ form.filename.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Beskrivning</label>
+                        {{ form.description }}
+                        <div class="form-text">T.ex. "Personbevis från Skatteverket"</div>
+                        {% if form.description.errors %}
+                        <div class="text-danger">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'documents:type_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check"></i> Spara
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

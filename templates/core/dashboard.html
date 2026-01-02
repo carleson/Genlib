@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Genlib{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">
+    <i class="bi bi-speedometer2"></i> Välkommen, {{ user.username }}!
+</h1>
+
+<!-- Statistik kort -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center bg-primary text-white">
+            <div class="card-body">
+                <h3 class="card-title">{{ total_persons }}</h3>
+                <p class="card-text">Personer</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-success text-white">
+            <div class="card-body">
+                <h3 class="card-title">{{ total_documents }}</h3>
+                <p class="card-text">Dokument</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-info text-white">
+            <div class="card-body">
+                <h3 class="card-title">{{ size_display }}</h3>
+                <p class="card-text">Total storlek</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-warning text-white">
+            <div class="card-body">
+                <h3 class="card-title">{{ file_types|length }}</h3>
+                <p class="card-text">Filtyper</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Snabblänkar -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning-fill"></i> Snabblänkar
+            </div>
+            <div class="card-body">
+                <a href="{% url 'persons:create' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-person-plus"></i> Lägg till person
+                </a>
+                <a href="{% url 'persons:list' %}" class="btn btn-secondary me-2">
+                    <i class="bi bi-list"></i> Visa alla personer
+                </a>
+                <a href="{% url 'documents:type_list' %}" class="btn btn-info me-2">
+                    <i class="bi bi-file-earmark-text"></i> Hantera dokumenttyper
+                </a>
+                <a href="{% url 'persons:checklist_report' %}" class="btn btn-success">
+                    <i class="bi bi-list-check"></i> Checklista
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Senaste personer -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock-history"></i> Senast tillagda personer
+            </div>
+            <div class="card-body">
+                {% if recent_persons %}
+                <div class="list-group">
+                    {% for person in recent_persons %}
+                    <a href="{% url 'persons:detail' person.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ person.get_full_name }}</h6>
+                            <small>{{ person.created_at|date:"Y-m-d" }}</small>
+                        </div>
+                        {% if person.get_years_display %}
+                        <small class="text-muted">{{ person.get_years_display }}</small>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Inga personer ännu. <a href="{% url 'persons:create' %}">Lägg till den första!</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Senaste dokument -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-file-earmark-text"></i> Senast tillagda dokument
+            </div>
+            <div class="card-body">
+                {% if recent_documents %}
+                <div class="list-group">
+                    {% for doc in recent_documents %}
+                    <a href="{% url 'persons:detail' doc.person.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ doc.filename }}</h6>
+                            <small>{{ doc.created_at|date:"Y-m-d" }}</small>
+                        </div>
+                        <small class="text-muted">{{ doc.person.get_full_name }} - {{ doc.document_type.name }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Inga dokument ännu.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtypsfördelning -->
+{% if file_types %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-pie-chart-fill"></i> Filtypsfördelning
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Filtyp</th>
+                            <th>Antal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ft in file_types %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ ft.file_type|upper }}</span></td>
+                            <td>{{ ft.count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

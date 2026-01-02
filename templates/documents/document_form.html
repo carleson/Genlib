@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Redigera{% else %}Nytt{% endif %} dokument - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">
+                    {% if object %}
+                    <i class="bi bi-pencil"></i> Redigera dokument
+                    {% else %}
+                    <i class="bi bi-file-earmark-plus"></i> Nytt dokument
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.person.id_for_label }}" class="form-label fw-bold">
+                            Person <span class="text-danger">*</span>
+                        </label>
+                        {{ form.person }}
+                        {% if form.person.errors %}
+                        <div class="text-danger">{{ form.person.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.document_type.id_for_label }}" class="form-label fw-bold">
+                            Dokumenttyp <span class="text-danger">*</span>
+                        </label>
+                        {{ form.document_type }}
+                        {% if form.document_type.errors %}
+                        <div class="text-danger">{{ form.document_type.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{{ form.upload_type.label }}</label>
+                        <div class="d-flex gap-4">
+                            {% for radio in form.upload_type %}
+                            <div class="form-check">
+                                {{ radio.tag }}
+                                <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                    {{ radio.choice_label }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.upload_type.errors %}
+                        <div class="text-danger">{{ form.upload_type.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="filename-group">
+                        <label for="{{ form.filename.id_for_label }}" class="form-label fw-bold">
+                            Filnamn <span class="text-danger">*</span>
+                        </label>
+                        {{ form.filename }}
+                        <div class="form-text" id="filename-help-text">Hämtas automatiskt från vald dokumenttyp.</div>
+                        {% if form.filename.errors %}
+                        <div class="text-danger">{{ form.filename.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.relative_path.id_for_label }}" class="form-label fw-bold">
+                            Relativ sökväg <span class="text-danger">*</span>
+                        </label>
+                        {{ form.relative_path }}
+                        <div class="form-text">Genereras automatiskt från personens katalog och dokumenttypens målkatalog.</div>
+                        {% if form.relative_path.errors %}
+                        <div class="text-danger">{{ form.relative_path.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="text-group" style="display: none;">
+                        <label for="{{ form.text.id_for_label }}" class="form-label fw-bold">
+                            {{ form.text.label }}
+                        </label>
+                        {{ form.text }}
+                        <div class="form-text">{{ form.text.help_text }}</div>
+                        {% if form.text.errors %}
+                        <div class="text-danger">{{ form.text.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="file-group" style="display: none;">
+                        <label for="{{ form.file.id_for_label }}" class="form-label fw-bold">
+                            {{ form.file.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.file }}
+                        <div class="form-text">{{ form.file.help_text }}</div>
+                        {% if form.file.errors %}
+                        <div class="text-danger">{{ form.file.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.tags.id_for_label }}" class="form-label fw-bold">Taggar</label>
+                        {{ form.tags }}
+                        <div class="form-text">Kommaseparerad lista, t.ex. "födelse, folkräkning, 1850"</div>
+                        {% if form.tags.errors %}
+                        <div class="text-danger">{{ form.tags.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if object %}{% url 'persons:detail' object.person.id %}{% else %}{% url 'core:dashboard' %}{% endif %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check"></i> Spara
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const personSelect = document.getElementById('id_person');
+    const documentTypeSelect = document.getElementById('id_document_type');
+    const filenameInput = document.getElementById('id_filename');
+    const relativePathInput = document.getElementById('id_relative_path');
+    const uploadTypeRadios = document.querySelectorAll('input[name="upload_type"]');
+    const textGroup = document.getElementById('text-group');
+    const fileGroup = document.getElementById('file-group');
+    const fileInput = document.querySelector('input[name="file"]');
+    const filenameHelpText = document.getElementById('filename-help-text');
+
+    // Parse JSON data från template
+    const documentTypes = JSON.parse('{{ document_types_json|safe }}');
+    const persons = JSON.parse('{{ persons_json|safe }}');
+
+    // Skapa lookup maps för snabb åtkomst
+    const documentTypeMap = {};
+    documentTypes.forEach(dt => {
+        documentTypeMap[dt.id] = dt;
+    });
+
+    const personMap = {};
+    persons.forEach(p => {
+        personMap[p.id] = p;
+    });
+
+    // Hantera växling mellan text och fil
+    function updateUploadType() {
+        const selectedType = document.querySelector('input[name="upload_type"]:checked').value;
+
+        if (selectedType === 'text') {
+            textGroup.style.display = 'block';
+            fileGroup.style.display = 'none';
+            filenameInput.readOnly = true;
+            filenameHelpText.textContent = 'Hämtas automatiskt från vald dokumenttyp.';
+            updateFilenameAndPath();
+        } else {
+            textGroup.style.display = 'none';
+            fileGroup.style.display = 'block';
+            filenameInput.readOnly = false;
+            filenameHelpText.textContent = 'Uppdateras automatiskt när du väljer en fil.';
+        }
+    }
+
+    // Hantera filnamn när fil väljs
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            filenameInput.value = fileName;
+            updateRelativePath();
+        }
+    });
+
+    function updateFilenameAndPath() {
+        const selectedType = document.querySelector('input[name="upload_type"]:checked')?.value;
+
+        // Bara uppdatera automatiskt om vi är i text-läge
+        if (selectedType !== 'text') {
+            return;
+        }
+
+        const selectedDocTypeId = documentTypeSelect.value;
+        const selectedPersonId = personSelect.value;
+
+        if (!selectedDocTypeId || !selectedPersonId) {
+            filenameInput.value = '';
+            relativePathInput.value = '';
+            return;
+        }
+
+        const docType = documentTypeMap[selectedDocTypeId];
+        const person = personMap[selectedPersonId];
+
+        if (docType && person) {
+            // Sätt filnamn från dokumenttyp
+            filenameInput.value = docType.filename;
+
+            // Sätt relativ sökväg: target_directory/filename
+            const relativePath = docType.target_directory + '/' + docType.filename;
+            relativePathInput.value = relativePath;
+        }
+    }
+
+    function updateRelativePath() {
+        const selectedDocTypeId = documentTypeSelect.value;
+        const filename = filenameInput.value;
+
+        if (!selectedDocTypeId || !filename) {
+            relativePathInput.value = '';
+            return;
+        }
+
+        const docType = documentTypeMap[selectedDocTypeId];
+        if (docType) {
+            const relativePath = docType.target_directory + '/' + filename;
+            relativePathInput.value = relativePath;
+        }
+    }
+
+    // Event listeners
+    uploadTypeRadios.forEach(radio => {
+        radio.addEventListener('change', updateUploadType);
+    });
+
+    personSelect.addEventListener('change', updateFilenameAndPath);
+    documentTypeSelect.addEventListener('change', updateFilenameAndPath);
+
+    // Initial uppdatering
+    updateUploadType();
+    updateFilenameAndPath();
+});
+</script>
+
+{% endblock %}

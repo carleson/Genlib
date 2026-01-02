@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+      - static_volume:/app/static
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=django-insecure-yi1bvas%zbm&##t&6c*z3q&l64k5)7^put))5#kuvc*fcv5zpi
+
+volumes:
+  sqlite_data:
+  static_volume:
+  media_volume:
