@@ -5,10 +5,14 @@ from django.contrib.auth import login
 from django.db.models import Count, Sum
 from django.utils import timezone
 from django.contrib import messages
+from django.http import FileResponse, HttpResponse
 from persons.models import Person
 from documents.models import Document
 from .models import SetupStatus, SystemConfig
 from .forms import InitialSetupForm
+from pathlib import Path
+from datetime import datetime
+import os
 
 
 @login_required
@@ -80,9 +84,10 @@ def initial_setup(request):
                         password=form.cleaned_data['password']
                     )
 
-                    # Konfigurera media-katalog
+                    # Konfigurera media-katalog och backup-katalog
                     config = SystemConfig.load()
                     config.media_directory_path = form.cleaned_data['media_directory_path']
+                    config.backup_directory_path = form.cleaned_data.get('backup_directory_path', 'backups')
                     config.save()
 
                     # Markera setup som klar
@@ -188,3 +193,138 @@ def initial_setup(request):
     }
 
     return render(request, 'core/initial_setup.html', context)
+
+
+@login_required
+def backup_list(request):
+    """Visa lista över backuper och skapa ny backup"""
+    from .utils import get_backup_root
+
+    backup_root = Path(get_backup_root())
+    backup_root.mkdir(parents=True, exist_ok=True)
+
+    # Hämta alla backup-filer
+    backups = []
+    if backup_root.exists():
+        for backup_file in sorted(backup_root.glob('genlib_backup_*.zip'), reverse=True):
+            backups.append({
+                'name': backup_file.name,
+                'path': backup_file,
+                'size': backup_file.stat().st_size,
+                'size_display': format_file_size(backup_file.stat().st_size),
+                'created': datetime.fromtimestamp(backup_file.stat().st_mtime),
+            })
+
+    context = {
+        'backups': backups,
+        'backup_directory': str(backup_root),
+    }
+
+    return render(request, 'core/backup_list.html', context)
+
+
+@login_required
+def create_backup(request):
+    """Skapa en ny backup"""
+    from django.core.management import call_command
+    from io import StringIO
+    from .utils import get_backup_root
+
+    if request.method == 'POST':
+        try:
+            backup_root = Path(get_backup_root())
+            backup_root.mkdir(parents=True, exist_ok=True)
+
+            # Kör backup-kommandot
+            out = StringIO()
+            call_command('backup', output_dir=str(backup_root), stdout=out)
+
+            messages.success(request, 'Backup skapad framgångsrikt!')
+            return redirect('core:backup_list')
+
+        except Exception as e:
+            messages.error(request, f'Fel vid skapande av backup: {e}')
+            return redirect('core:backup_list')
+
+    return redirect('core:backup_list')
+
+
+@login_required
+def download_backup(request, filename):
+    """Ladda ner en backup-fil"""
+    from .utils import get_backup_root
+
+    backup_root = Path(get_backup_root())
+    backup_file = backup_root / filename
+
+    # Säkerhetskontroll: verifiera att filen finns och är inom backup-katalogen
+    if not backup_file.exists() or not backup_file.is_relative_to(backup_root):
+        messages.error(request, 'Backup-filen hittades inte')
+        return redirect('core:backup_list')
+
+    # Returnera filen som nedladdning
+    response = FileResponse(open(backup_file, 'rb'), as_attachment=True)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def delete_backup(request, filename):
+    """Ta bort en backup-fil"""
+    from .utils import get_backup_root
+
+    if request.method == 'POST':
+        backup_root = Path(get_backup_root())
+        backup_file = backup_root / filename
+
+        # Säkerhetskontroll
+        if backup_file.exists() and backup_file.is_relative_to(backup_root):
+            try:
+                backup_file.unlink()
+                messages.success(request, f'Backup {filename} har tagits bort')
+            except Exception as e:
+                messages.error(request, f'Kunde inte ta bort backup: {e}')
+        else:
+            messages.error(request, 'Backup-filen hittades inte')
+
+    return redirect('core:backup_list')
+
+
+@login_required
+def restore_backup(request):
+    """Återställ från en backup"""
+    from django.core.management import call_command
+    from io import StringIO
+    from .utils import get_backup_root
+
+    if request.method == 'POST':
+        filename = request.POST.get('filename')
+
+        if not filename:
+            messages.error(request, 'Ingen backup-fil vald')
+            return redirect('core:backup_list')
+
+        backup_root = Path(get_backup_root())
+        backup_file = backup_root / filename
+
+        # Säkerhetskontroll
+        if not backup_file.exists() or not backup_file.is_relative_to(backup_root):
+            messages.error(request, 'Backup-filen hittades inte')
+            return redirect('core:backup_list')
+
+        try:
+            # Kör restore-kommandot
+            out = StringIO()
+            call_command('restore', str(backup_file), '--no-confirm', stdout=out)
+
+            messages.success(
+                request,
+                'Backup återställd framgångsrikt! Starta om servern för att ladda nya data.'
+            )
+            return redirect('core:backup_list')
+
+        except Exception as e:
+            messages.error(request, f'Fel vid återställning av backup: {e}')
+            return redirect('core:backup_list')
+
+    return redirect('core:backup_list')

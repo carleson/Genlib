@@ -8,7 +8,11 @@
 
 ### Översikt
 
-**Genlib** är ett webbaserat system för hantering av släktforskning. Systemet hjälper dig att organisera personer, dokument och källmaterial på ett strukturerat sätt. Byggt med Django och Bootstrap för en modern och användarvänlig upplevelse.
+**Genlib** är ett webbaserat dokumenthanteringssystem för hantering av släktforsknings dokument. Systemet hjälper dig att organisera personer, dokument och källmaterial på ett strukturerat sätt. 
+Använd Genlib för att organisera dina dokument (ex personbevis, folkräkning, kyrkböcker m.m) lokalt på din dator eller i molnet.
+Dokumenten lagras som filer i filsystemet och går enkelt att komma åt eller uppdateras.
+Genlib är ett komplement till släktforskningsprogram.
+
 
 ### Huvudfunktioner
 

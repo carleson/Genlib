@@ -77,6 +77,19 @@ class InitialSetupForm(forms.Form):
         })
     )
 
+    # Backup-katalog
+    backup_directory_path = forms.CharField(
+        max_length=500,
+        label="Backup-katalog",
+        help_text="Absolut sökväg till katalog där backuper ska lagras (t.ex. /home/user/genlib-backups) eller relativ sökväg (t.ex. backups)",
+        initial="backups",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '/absolut/sökväg/till/backups eller backups'
+        })
+    )
+
     def clean(self):
         """Validera hela formuläret baserat på setup_type"""
         cleaned_data = super().clean()

@@ -34,6 +34,16 @@ class SystemConfigAdmin(admin.ModelAdmin):
                 '<p><strong>Dokumentkatalog namn:</strong> Namnet som används i URL:er (t.ex. "media" ger /media/...).</p>'
             )
         }),
+        ('Backup-katalog', {
+            'fields': ['backup_directory_path'],
+            'description': (
+                '<p>Konfigurera var backup-filer ska lagras.</p>'
+                '<p><strong>Backup-katalog sökväg:</strong> Kan vara absolut (t.ex. /home/user/genlib-backups) '
+                'eller relativ till projektets rotkatalog (t.ex. backups eller ../backups).</p>'
+                '<p><strong>OBS:</strong> Befintliga backup-filer flyttas inte automatiskt. '
+                'Kopiera manuellt befintliga backuper till den nya sökvägen om du ändrar den.</p>'
+            )
+        }),
     ]
 
 

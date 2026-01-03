@@ -17,6 +17,12 @@ class SystemConfig(models.Model):
         verbose_name="Dokumentkatalog namn",
         help_text="Namnet på katalogen (används i URL)"
     )
+    backup_directory_path = models.CharField(
+        max_length=500,
+        default='backups',
+        verbose_name="Backup-katalog sökväg",
+        help_text="Absolut sökväg (t.ex. /home/user/genlib-backups) eller relativ (t.ex. backups)"
+    )
 
     class Meta:
         verbose_name = "Systemkonfiguration"
@@ -44,6 +50,15 @@ class SystemConfig(models.Model):
         """Returnera absolut sökväg till media root"""
         from django.conf import settings
         path = Path(self.media_directory_path)
+        if path.is_absolute():
+            return path
+        else:
+            return settings.BASE_DIR / path
+
+    def get_backup_root(self):
+        """Returnera absolut sökväg till backup root"""
+        from django.conf import settings
+        path = Path(self.backup_directory_path)
         if path.is_absolute():
             return path
         else:

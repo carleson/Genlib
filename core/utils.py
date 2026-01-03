@@ -1,5 +1,6 @@
 """Hjälpfunktioner för core-appen"""
 from django.conf import settings
+from pathlib import Path
 
 
 def get_media_root():
@@ -28,3 +29,17 @@ def get_media_url():
     except Exception:
         # Fallback till settings om något går fel
         return settings.MEDIA_URL
+
+
+def get_backup_root():
+    """
+    Hämta backup root från systemkonfiguration.
+    Använder standardvärdet 'backups' om konfiguration inte finns.
+    """
+    try:
+        from .models import SystemConfig
+        config = SystemConfig.load()
+        return config.get_backup_root()
+    except Exception:
+        # Fallback till default om något går fel (t.ex. vid migrationer)
+        return settings.BASE_DIR / 'backups'

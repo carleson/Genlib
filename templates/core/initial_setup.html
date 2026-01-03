@@ -207,6 +207,19 @@
                                     <div class="form-text">{{ form.media_directory_path.help_text }}</div>
                                 </div>
 
+                                <div class="mb-3">
+                                    <label for="{{ form.backup_directory_path.id_for_label }}" class="form-label">
+                                        {{ form.backup_directory_path.label }}
+                                    </label>
+                                    {{ form.backup_directory_path }}
+                                    {% if form.backup_directory_path.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.backup_directory_path.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">{{ form.backup_directory_path.help_text }}</div>
+                                </div>
+
                                 <div class="alert alert-info">
                                     <i class="bi bi-info-circle-fill"></i>
                                     <strong>Tips:</strong> Du kan ändra dessa inställningar senare via admin-panelen.
