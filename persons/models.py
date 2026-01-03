@@ -11,6 +11,7 @@ class Person(models.Model):
     surname = models.CharField(max_length=100, blank=True, verbose_name="Efternamn")
     birth_date = models.DateField(null=True, blank=True, verbose_name="Födelsedatum")
     death_date = models.DateField(null=True, blank=True, verbose_name="Dödsdatum")
+    age = models.IntegerField(null=True, blank=True, verbose_name="Ålder", help_text="Beräknad ålder")
     notes = models.TextField(blank=True, verbose_name="Anteckningar")
     directory_name = models.CharField(max_length=200, verbose_name="Katalognamn")
     template_used = models.ForeignKey(
@@ -55,6 +56,62 @@ class Person(models.Model):
         """Returnera fullständigt namn"""
         return str(self)
 
+    def get_years_display(self):
+        """
+        Returnera en formatterad sträng med födelse- och dödsår samt ålder.
+        Format: "1950-2020 (70 år)" eller "1990 (34 år)" om personen lever.
+        """
+        if not self.birth_date:
+            return None
+
+        birth_year = self.birth_date.year
+        if self.death_date:
+            death_year = self.death_date.year
+            if self.age:
+                return f"{birth_year}-{death_year} ({self.age} år)"
+            else:
+                return f"{birth_year}-{death_year}"
+        else:
+            if self.age:
+                return f"{birth_year} ({self.age} år)"
+            else:
+                return str(birth_year)
+
+    def calculate_age(self):
+        """
+        Beräkna ålder baserat på födelsedatum och dödsdatum.
+
+        Regler:
+        - Om dödsdatum finns: beräkna ålder vid döden
+        - Om personen lever och födelsedatum finns: beräkna nuvarande ålder
+        - Endast om födelsedatum inte är mer än 100 år sedan
+        - Returnerar None om åldern inte kan beräknas
+        """
+        from datetime import date
+
+        if not self.birth_date:
+            return None
+
+        # Bestäm slutdatum för beräkningen
+        if self.death_date:
+            end_date = self.death_date
+        else:
+            end_date = date.today()
+            # Kontrollera att födelsedatum inte är mer än 100 år sedan
+            # Beräkna 100 år sedan genom att subtrahera 100 från årtalet
+            hundred_years_ago = end_date.replace(year=end_date.year - 100)
+            if self.birth_date < hundred_years_ago:
+                return None
+
+        # Beräkna ålder
+        age = end_date.year - self.birth_date.year
+
+        # Justera för om födelsedagen inte har inträffat ännu detta år
+        if (end_date.month, end_date.day) < (self.birth_date.month, self.birth_date.day):
+            age -= 1
+
+        return age if age >= 0 else None
+
     def get_directory_path(self):
         """Returnera relativ sökväg till personens katalog"""
         return f"persons/{self.directory_name}"
@@ -84,6 +141,12 @@ class Person(models.Model):
             else:
                 results.append((rel.person_a, rel))
         return results
+
+    def save(self, *args, **kwargs):
+        """Spara personen och uppdatera ålder automatiskt"""
+        # Beräkna och uppdatera ålder innan sparande
+        self.age = self.calculate_age()
+        super().save(*args, **kwargs)
 
 
 class RelationshipType(models.TextChoices):

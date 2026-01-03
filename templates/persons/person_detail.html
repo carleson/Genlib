@@ -59,6 +59,18 @@
                     <dt class="col-sm-3">Dödsdatum:</dt>
                     <dd class="col-sm-9">{{ person.death_date|date:"Y-m-d"|default:"-" }}</dd>
 
+                    {% if person.age %}
+                    <dt class="col-sm-3">Ålder:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-primary">{{ person.age }} år</span>
+                        {% if person.death_date %}
+                            <small class="text-muted">(vid döden)</small>
+                        {% else %}
+                            <small class="text-muted">(nuvarande)</small>
+                        {% endif %}
+                    </dd>
+                    {% endif %}
+
                     <dt class="col-sm-3">Katalognamn:</dt>
                     <dd class="col-sm-9"><code>{{ person.directory_name }}</code></dd>
 
