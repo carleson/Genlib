@@ -21,6 +21,15 @@
                     <i class="bi bi-files"></i> Duplicera person
                 </a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post" action="{% url 'persons:sync_documents' person.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item" onclick="return confirm('Detta kommer att synkronisera dokument från filsystemet. Vill du fortsätta?');">
+                            <i class="bi bi-arrow-repeat"></i> Ladda om dokument
+                        </button>
+                    </form>
+                </li>
+                <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{% url 'persons:export' person.id %}">
                     <i class="bi bi-download"></i> Exportera data
                 </a></li>

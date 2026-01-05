@@ -7,7 +7,7 @@ from .views import (
     ChecklistItemCreateView, ChecklistItemUpdateView, ChecklistItemDeleteView,
     ChecklistReportView,
     PersonRenameView, PersonDuplicateView, PersonExportView,
-    PersonChronologicalReportView
+    PersonChronologicalReportView, PersonDocumentSyncView
 )
 
 app_name = 'persons'
@@ -48,4 +48,7 @@ urlpatterns = [
     path('<int:pk>/chronological-report/',
          PersonChronologicalReportView.as_view(),
          name='chronological_report'),
+    path('<int:pk>/sync-documents/',
+         PersonDocumentSyncView.as_view(),
+         name='sync_documents'),
 ]

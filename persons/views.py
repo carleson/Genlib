@@ -12,6 +12,7 @@ from django.db import transaction
 from pathlib import Path
 import json
 import csv
+import os
 import shutil
 from datetime import datetime
 
@@ -20,7 +21,7 @@ from .models import (
     PersonChecklistItem, ChecklistCategory
 )
 from .forms import PersonForm, PersonRelationshipForm, PersonRenameForm, PersonExportForm
-from documents.models import Document
+from documents.models import Document, DocumentType
 from core.utils import get_media_root
 
 
@@ -901,3 +902,153 @@ class PersonChronologicalReportView(LoginRequiredMixin, DetailView):
         context['total_documents'] = documents.count()
 
         return context
+
+
+class PersonDocumentSyncView(LoginRequiredMixin, View):
+    """Synkronisera dokument från filsystemet till databasen"""
+
+    def post(self, request, pk: int) -> HttpResponse:
+        """Utför synkronisering av dokument för en person"""
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+
+        try:
+            # Räknare för statistik
+            added_count = 0
+            removed_count = 0
+            updated_count = 0
+
+            # Hämta personens katalog
+            person_dir = Path(get_media_root()) / 'persons' / person.directory_name
+
+            if not person_dir.exists():
+                messages.warning(
+                    request,
+                    f'Katalogen {person_dir} finns inte ännu. '
+                    'Inga dokument att synkronisera.'
+                )
+                return redirect('persons:detail', pk=pk)
+
+            # Hämta alla dokumenttyper
+            document_types = DocumentType.objects.all()
+
+            # Skapa en mappning av (target_directory, filename) -> DocumentType
+            doc_type_map = {}
+            for doc_type in document_types:
+                doc_type_map[(doc_type.target_directory, doc_type.filename)] = doc_type
+
+            # Samla alla filer som finns i filsystemet
+            files_in_fs = set()
+            new_documents_to_create = []
+
+            # Skanna igenom alla kataloger i personens katalog
+            for item in person_dir.rglob('*'):
+                if item.is_file():
+                    # Beräkna relativ sökväg från personens katalog
+                    rel_path = item.relative_to(person_dir)
+                    target_dir = str(rel_path.parent) if rel_path.parent != Path('.') else ''
+                    filename = item.name
+
+                    # Normalisera target_dir för att hantera Windows vs Unix-sökvägar
+                    target_dir = target_dir.replace('\\', '/')
+
+                    # Lägg till i set med filsystemfiler
+                    files_in_fs.add((target_dir, filename))
+
+                    # Kolla om dokumentet redan finns i databasen
+                    existing_doc = Document.objects.filter(
+                        person=person,
+                        relative_path=str(rel_path).replace('\\', '/')
+                    ).first()
+
+                    if existing_doc:
+                        # Uppdatera metadata för befintligt dokument
+                        old_size = existing_doc.file_size
+                        new_size = item.stat().st_size
+
+                        if old_size != new_size:
+                            existing_doc.file_size = new_size
+                            existing_doc.file_modified_at = datetime.fromtimestamp(
+                                item.stat().st_mtime
+                            )
+                            existing_doc.save()
+                            updated_count += 1
+                    else:
+                        # Nytt dokument - försök hitta matchande DocumentType
+                        doc_type = doc_type_map.get((target_dir, filename))
+
+                        if doc_type:
+                            # Skapa nytt Document-objekt
+                            file_size = item.stat().st_size
+                            _, ext = os.path.splitext(filename)
+                            file_type = ext.lstrip('.').lower()
+
+                            new_doc = Document(
+                                person=person,
+                                document_type=doc_type,
+                                filename=filename,
+                                relative_path=str(rel_path).replace('\\', '/'),
+                                file_size=file_size,
+                                file_type=file_type,
+                                file_modified_at=datetime.fromtimestamp(
+                                    item.stat().st_mtime
+                                )
+                            )
+
+                            # Sätt filsökvägen
+                            upload_path = os.path.join(
+                                'persons',
+                                person.directory_name,
+                                str(rel_path).replace('\\', '/')
+                            )
+                            new_doc.file.name = upload_path
+
+                            new_documents_to_create.append(new_doc)
+                            added_count += 1
+
+            # Skapa alla nya dokument
+            if new_documents_to_create:
+                Document.objects.bulk_create(new_documents_to_create)
+
+            # Ta bort dokument som inte längre finns i filsystemet
+            existing_documents = Document.objects.filter(person=person)
+            for doc in existing_documents:
+                # Extrahera target_directory och filename från relative_path
+                rel_path_parts = Path(doc.relative_path)
+                target_dir = str(rel_path_parts.parent) if rel_path_parts.parent != Path('.') else ''
+                filename = rel_path_parts.name
+
+                # Normalisera
+                target_dir = target_dir.replace('\\', '/')
+
+                if (target_dir, filename) not in files_in_fs:
+                    # Filen finns inte längre i filsystemet
+                    doc.delete()
+                    removed_count += 1
+
+            # Bygg meddelande
+            message_parts = []
+            if added_count > 0:
+                message_parts.append(f'{added_count} dokument tillagda')
+            if updated_count > 0:
+                message_parts.append(f'{updated_count} dokument uppdaterade')
+            if removed_count > 0:
+                message_parts.append(f'{removed_count} dokument borttagna')
+
+            if message_parts:
+                messages.success(
+                    request,
+                    f'Dokumentsynkronisering klar: {", ".join(message_parts)}.'
+                )
+            else:
+                messages.info(
+                    request,
+                    'Dokumenten är redan synkroniserade. Inga ändringar gjordes.'
+                )
+
+        except Exception as e:
+            messages.error(
+                request,
+                f'Fel vid dokumentsynkronisering: {str(e)}'
+            )
+
+        return redirect('persons:detail', pk=pk)
