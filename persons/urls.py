@@ -7,13 +7,15 @@ from .views import (
     ChecklistItemCreateView, ChecklistItemUpdateView, ChecklistItemDeleteView,
     ChecklistReportView,
     PersonRenameView, PersonDuplicateView, PersonExportView,
-    PersonChronologicalReportView, PersonDocumentSyncView
+    PersonChronologicalReportView, PersonDocumentSyncView,
+    FamilyTreeView
 )
 
 app_name = 'persons'
 
 urlpatterns = [
     path('', PersonListView.as_view(), name='list'),
+    path('tree/', FamilyTreeView.as_view(), name='family_tree'),
     path('create/', PersonCreateView.as_view(), name='create'),
     path('<int:pk>/', PersonDetailView.as_view(), name='detail'),
     path('<int:pk>/edit/', PersonUpdateView.as_view(), name='update'),

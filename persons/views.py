@@ -33,6 +33,9 @@ class PersonListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
+        from django.db.models.functions import Lower
+        from django.db.models import Case, When, Value, CharField
+
         queryset = Person.objects.filter(user=self.request.user)
 
         # Sök
@@ -45,10 +48,66 @@ class PersonListView(LoginRequiredMixin, ListView):
                 Q(notes__icontains=search)
             )
 
-        # Sortering
+        # Filter: Personer med dokument
+        has_documents = self.request.GET.get('has_documents')
+        if has_documents == 'on':
+            queryset = queryset.annotate(
+                document_count=Count('documents')
+            ).filter(document_count__gt=0)
+
+        # Filter: Levande personer
+        is_alive = self.request.GET.get('is_alive')
+        if is_alive == 'on':
+            queryset = queryset.filter(death_date__isnull=True)
+
+        # Sortering med svensk alfabetisk ordning
         sort = self.request.GET.get('sort', 'surname')
-        if sort in ['surname', 'firstname', '-created_at', 'directory_name']:
-            queryset = queryset.order_by(sort)
+
+        # Skapa sorteringsfält som hanterar NULL, tomma strängar och flera namn
+        from django.db.models import Func
+
+        class FirstWord(Func):
+            """Extrahera första ordet från en sträng (före första mellanslaget)"""
+            template = "CASE WHEN INSTR(%(expressions)s, ' ') > 0 THEN SUBSTR(%(expressions)s, 1, INSTR(%(expressions)s, ' ') - 1) ELSE %(expressions)s END"
+
+        queryset = queryset.annotate(
+            sort_surname=Case(
+                When(surname='', then=Value('ZZZZZZZZZ')),
+                When(surname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower('surname'),
+                output_field=CharField(),
+            ),
+            # För förnamn: använd första ordet, sen hela namnet för sekundär sortering
+            first_name_first_word=Case(
+                When(firstname='', then=Value('ZZZZZZZZZ')),
+                When(firstname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower(FirstWord('firstname')),
+                output_field=CharField(),
+            ),
+            sort_firstname_full=Case(
+                When(firstname='', then=Value('ZZZZZZZZZ')),
+                When(firstname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower('firstname'),
+                output_field=CharField(),
+            )
+        )
+
+        if sort == 'surname':
+            # Sortera på efternamn, sedan första ordet i förnamn, sedan hela förnamnet
+            queryset = queryset.order_by('sort_surname', 'first_name_first_word', 'sort_firstname_full')
+        elif sort == 'firstname':
+            # Sortera på första ordet i förnamn, sedan hela förnamnet, sedan efternamn
+            queryset = queryset.order_by('first_name_first_word', 'sort_firstname_full', 'sort_surname')
+        elif sort == '-created_at':
+            queryset = queryset.order_by('-created_at')
+        elif sort == 'directory_name':
+            queryset = queryset.order_by(Lower('directory_name'))
+        elif sort == 'birth_date':
+            # Sortera på födelsedatum, äldst först (NULL sist)
+            queryset = queryset.order_by('birth_date')
+        elif sort == '-birth_date':
+            # Sortera på födelsedatum, yngst först (NULL sist)
+            queryset = queryset.order_by('-birth_date')
 
         return queryset
 
@@ -56,6 +115,15 @@ class PersonListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['search'] = self.request.GET.get('search', '')
         context['sort'] = self.request.GET.get('sort', 'surname')
+        context['has_documents'] = self.request.GET.get('has_documents', '')
+        context['is_alive'] = self.request.GET.get('is_alive', '')
+
+        # Räkna totalt antal personer (utan filter)
+        context['total_persons'] = Person.objects.filter(user=self.request.user).count()
+
+        # Räkna antal filtrerade träffar
+        context['filtered_count'] = self.get_queryset().count()
+
         return context
 
 
@@ -1065,3 +1133,194 @@ class PersonDocumentSyncView(LoginRequiredMixin, View):
             )
 
         return redirect('persons:detail', pk=pk)
+
+
+class FamilyTreeView(LoginRequiredMixin, View):
+    """Interaktiv släktträdsvy"""
+
+    def get(self, request) -> HttpResponse:
+        """Visa släktträdet"""
+        from django.db.models.functions import Lower
+        from django.db.models import Case, When, Value, CharField, Func
+
+        class FirstWord(Func):
+            """Extrahera första ordet från en sträng (före första mellanslaget)"""
+            template = "CASE WHEN INSTR(%(expressions)s, ' ') > 0 THEN SUBSTR(%(expressions)s, 1, INSTR(%(expressions)s, ' ') - 1) ELSE %(expressions)s END"
+
+        # Hämta alla personer för användaren med korrekt sortering
+        persons = Person.objects.filter(user=request.user).select_related(
+            'template_used'
+        ).prefetch_related(
+            'relationships_as_a',
+            'relationships_as_b'
+        ).annotate(
+            sort_surname=Case(
+                When(surname='', then=Value('ZZZZZZZZZ')),
+                When(surname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower('surname'),
+                output_field=CharField(),
+            ),
+            first_name_first_word=Case(
+                When(firstname='', then=Value('ZZZZZZZZZ')),
+                When(firstname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower(FirstWord('firstname')),
+                output_field=CharField(),
+            ),
+            sort_firstname_full=Case(
+                When(firstname='', then=Value('ZZZZZZZZZ')),
+                When(firstname__isnull=True, then=Value('ZZZZZZZZZ')),
+                default=Lower('firstname'),
+                output_field=CharField(),
+            )
+        ).order_by('first_name_first_word', 'sort_firstname_full', 'sort_surname')
+
+        # Hämta vald person (om någon)
+        selected_person_id = request.GET.get('person_id')
+        selected_person = None
+        if selected_person_id:
+            selected_person = Person.objects.filter(
+                pk=selected_person_id,
+                user=request.user
+            ).first()
+
+        # Om ingen person vald, välj första person eller en med många relationer
+        if not selected_person and persons.exists():
+            # Försök hitta en person med flest relationer
+            person_with_most_rels = None
+            max_rels = 0
+            for person in persons[:50]:  # Kolla första 50
+                rel_count = person.get_all_relationships().count()
+                if rel_count > max_rels:
+                    max_rels = rel_count
+                    person_with_most_rels = person
+            selected_person = person_with_most_rels or persons.first()
+
+        # Bygg träddata med flera generationer
+        tree_data = None
+        if selected_person:
+            tree_data = self._build_tree_data(selected_person)
+
+        context = {
+            'persons': persons,
+            'selected_person': selected_person,
+            'total_persons': persons.count(),
+            'tree_data': tree_data,
+        }
+
+        return render(request, 'persons/family_tree.html', context)
+
+    def _build_tree_data(self, person):
+        """Bygg träd-datastruktur för vald person med flera generationer"""
+
+        def get_person_data(p):
+            """Hämta persondata"""
+            if not p:
+                return None
+            return {
+                'id': p.id,
+                'name': p.get_full_name(),
+                'birth_date': p.birth_date,
+                'death_date': p.death_date,
+                'years_display': p.get_years_display(),
+            }
+
+        def get_parents(p):
+            """Hämta föräldrar för en person"""
+            parents_rel = p.get_relationships_by_type(RelationshipType.PARENT)
+            parents = [rel[0] for rel in parents_rel]
+            return parents[:2]  # Max 2 föräldrar
+
+        def get_spouse(p):
+            """Hämta make/maka för en person"""
+            spouse_rel = p.get_relationships_by_type(RelationshipType.SPOUSE)
+            if spouse_rel:
+                return spouse_rel[0][0]  # Första maken/makan
+            return None
+
+        def get_children(p, spouse=None):
+            """Hämta barn för en person (och eventuell make/maka)"""
+            children_rel = p.get_relationships_by_type(RelationshipType.CHILD)
+            children = [rel[0] for rel in children_rel]
+
+            # Om det finns en make/maka, filtrera barn som är gemensamma
+            if spouse:
+                spouse_children_rel = spouse.get_relationships_by_type(RelationshipType.CHILD)
+                spouse_children_ids = [rel[0].id for rel in spouse_children_rel]
+                # Gemensamma barn
+                common_children = [c for c in children if c.id in spouse_children_ids]
+                if common_children:
+                    return common_children
+
+            return children
+
+        # Centrerad person
+        tree = {
+            'person': get_person_data(person),
+            'spouse': None,
+            'parents': [],
+            'grandparents': {'paternal': [], 'maternal': []},
+            'children': [],
+            'grandchildren': [],
+        }
+
+        # Hämta make/maka
+        spouse = get_spouse(person)
+        if spouse:
+            tree['spouse'] = get_person_data(spouse)
+
+        # Hämta föräldrar
+        parents = get_parents(person)
+        for parent in parents:
+            parent_data = {
+                'person': get_person_data(parent),
+                'spouse': None,
+            }
+
+            # Hämta föräldrars make/maka (andra föräldern)
+            parent_spouse = get_spouse(parent)
+            if parent_spouse and parent_spouse.id in [p.id for p in parents]:
+                parent_data['spouse'] = get_person_data(parent_spouse)
+
+            tree['parents'].append(parent_data)
+
+            # Hämta farföräldrar/morföräldrar
+            grandparents = get_parents(parent)
+            grandparents_data = []
+            for gp in grandparents:
+                gp_data = {
+                    'person': get_person_data(gp),
+                    'spouse': None,
+                }
+                gp_spouse = get_spouse(gp)
+                if gp_spouse and gp_spouse.id in [g.id for g in grandparents]:
+                    gp_data['spouse'] = get_person_data(gp_spouse)
+                grandparents_data.append(gp_data)
+
+            # Bestäm om det är faderns eller moderns föräldrar
+            if len(tree['parents']) == 1:
+                tree['grandparents']['paternal'] = grandparents_data
+            else:
+                tree['grandparents']['maternal'] = grandparents_data
+
+        # Hämta barn
+        children = get_children(person, spouse)
+        for child in children:
+            child_data = {
+                'person': get_person_data(child),
+                'spouse': None,
+                'children': [],
+            }
+
+            # Hämta barnets make/maka
+            child_spouse = get_spouse(child)
+            if child_spouse:
+                child_data['spouse'] = get_person_data(child_spouse)
+
+            # Hämta barnbarn
+            grandchildren = get_children(child, child_spouse)
+            for gc in grandchildren:
+                child_data['children'].append(get_person_data(gc))
+
+            tree['children'].append(child_data)
+
+        return tree

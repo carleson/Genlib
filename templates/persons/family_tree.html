@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+
+{% block title %}Släktträd - Genlib{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: #f5f5f5;
+    }
+
+    .tree-container {
+        padding: 20px;
+        overflow: auto;
+        min-height: calc(100vh - 150px);
+    }
+
+    .tree-wrapper {
+        display: inline-block;
+        min-width: 100%;
+        padding: 40px 20px;
+    }
+
+    /* Person box styling */
+    .person-box {
+        background: white;
+        border: 2px solid #333;
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 180px;
+        max-width: 180px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+        position: relative;
+    }
+
+    .person-box:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        border-color: #0d6efd;
+        z-index: 10;
+    }
+
+    .person-box.selected {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #764ba2;
+        font-weight: 600;
+    }
+
+    .person-box.selected .person-name {
+        color: white;
+    }
+
+    .person-box.selected .person-dates {
+        color: rgba(255,255,255,0.9);
+    }
+
+    .person-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+        color: #212529;
+    }
+
+    .person-dates {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    /* Generation levels */
+    .generation {
+        margin: 40px 0;
+        position: relative;
+    }
+
+    .generation-label {
+        text-align: center;
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+    }
+
+    /* Flexbox layouts for each level */
+    .couples-row {
+        display: flex;
+        justify-content: center;
+        gap: 100px;
+        flex-wrap: wrap;
+        position: relative;
+    }
+
+    .couple {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        position: relative;
+    }
+
+    .couple::before {
+        /* Horizontal line between spouses */
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #333;
+        z-index: -1;
+    }
+
+    .children-row {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+        margin-top: 60px;
+        position: relative;
+    }
+
+    /* Vertical connecting lines */
+    .vertical-line {
+        position: absolute;
+        width: 2px;
+        background: #333;
+        left: 50%;
+        transform: translateX(-1px);
+    }
+
+    .line-down {
+        top: 100%;
+        height: 40px;
+    }
+
+    .line-up {
+        bottom: 100%;
+        height: 40px;
+    }
+
+    /* Horizontal distributor line for children */
+    .distributor-line {
+        position: absolute;
+        height: 2px;
+        background: #333;
+        top: -40px;
+    }
+
+    .child-connector {
+        position: absolute;
+        width: 2px;
+        height: 40px;
+        background: #333;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-1px);
+    }
+
+    .person-selector {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 100;
+        padding: 15px;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .no-data {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .person-box {
+            min-width: 140px;
+            max-width: 140px;
+            padding: 10px 12px;
+        }
+
+        .couple {
+            gap: 15px;
+        }
+
+        .couples-row {
+            gap: 60px;
+        }
+
+        .children-row {
+            gap: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Person Selector -->
+    <div class="person-selector">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="mb-0">
+                    <i class="bi bi-diagram-3"></i> Släktträd
+                </h4>
+            </div>
+            <div class="col-md-6">
+                <form method="get" action="{% url 'persons:family_tree' %}" class="d-flex gap-2">
+                    <select name="person_id" class="form-select" onchange="this.form.submit()">
+                        <option value="">Välj person...</option>
+                        {% for person in persons %}
+                        <option value="{{ person.id }}" {% if selected_person and person.id == selected_person.id %}selected{% endif %}>
+                            {{ person.get_full_name }} {% if person.birth_date %}({{ person.birth_date.year }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <a href="{% url 'persons:list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-list"></i> Lista
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if tree_data %}
+    <div class="tree-container">
+        <div class="tree-wrapper">
+            <!-- Farföräldrar/Morföräldrar (Generation 3) -->
+            {% if tree_data.grandparents.paternal or tree_data.grandparents.maternal %}
+            <div class="generation">
+                <div class="generation-label">Farföräldrar / Morföräldrar</div>
+                <div class="couples-row">
+                    <!-- Farföräldrar -->
+                    {% if tree_data.grandparents.paternal %}
+                    <div class="couple">
+                        {% for gp in tree_data.grandparents.paternal %}
+                        <div class="person-box" onclick="location.href='?person_id={{ gp.person.id }}'">
+                            <div class="person-name">{{ gp.person.name }}</div>
+                            <div class="person-dates">
+                                {% if gp.person.years_display %}
+                                    {{ gp.person.years_display }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="vertical-line line-down"></div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Morföräldrar -->
+                    {% if tree_data.grandparents.maternal %}
+                    <div class="couple">
+                        {% for gp in tree_data.grandparents.maternal %}
+                        <div class="person-box" onclick="location.href='?person_id={{ gp.person.id }}'">
+                            <div class="person-name">{{ gp.person.name }}</div>
+                            <div class="person-dates">
+                                {% if gp.person.years_display %}
+                                    {{ gp.person.years_display }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="vertical-line line-down"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Föräldrar (Generation 2) -->
+            {% if tree_data.parents %}
+            <div class="generation">
+                <div class="generation-label">Föräldrar</div>
+                <div class="couples-row">
+                    <div class="couple" style="position: relative;">
+                        {% for parent in tree_data.parents %}
+                        <div class="person-box" onclick="location.href='?person_id={{ parent.person.id }}'">
+                            <div class="person-name">{{ parent.person.name }}</div>
+                            <div class="person-dates">
+                                {% if parent.person.years_display %}
+                                    {{ parent.person.years_display }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="vertical-line line-down"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Centrerad person & Make/Maka (Generation 1) -->
+            <div class="generation">
+                <div class="generation-label">Fokusperson{% if tree_data.spouse %} & Make/Maka{% endif %}</div>
+                <div class="couples-row">
+                    <div class="couple" style="position: relative;">
+                        <!-- Centrerad person -->
+                        <div class="person-box selected">
+                            <div class="person-name">{{ tree_data.person.name }} ⭐</div>
+                            <div class="person-dates">
+                                {% if tree_data.person.years_display %}
+                                    {{ tree_data.person.years_display }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Make/Maka -->
+                        {% if tree_data.spouse %}
+                        <div class="person-box" onclick="location.href='?person_id={{ tree_data.spouse.id }}'">
+                            <div class="person-name">{{ tree_data.spouse.name }}</div>
+                            <div class="person-dates">
+                                {% if tree_data.spouse.years_display %}
+                                    {{ tree_data.spouse.years_display }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if tree_data.children %}
+                        <div class="vertical-line line-down"></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barn (Generation -1) -->
+            {% if tree_data.children %}
+            <div class="generation">
+                <div class="generation-label">Barn</div>
+                <div class="children-row" style="position: relative;">
+                    {% for child in tree_data.children %}
+                    <div style="position: relative;">
+                        <div class="child-connector"></div>
+                        <div class="couple">
+                            <div class="person-box" onclick="location.href='?person_id={{ child.person.id }}'">
+                                <div class="person-name">{{ child.person.name }}</div>
+                                <div class="person-dates">
+                                    {% if child.person.years_display %}
+                                        {{ child.person.years_display }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                                {% if child.children %}
+                                <div class="vertical-line line-down"></div>
+                                {% endif %}
+                            </div>
+
+                            {% if child.spouse %}
+                            <div class="person-box" onclick="location.href='?person_id={{ child.spouse.id }}'">
+                                <div class="person-name">{{ child.spouse.name }}</div>
+                                <div class="person-dates">
+                                    {% if child.spouse.years_display %}
+                                        {{ child.spouse.years_display }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Horizontal distributor line -->
+                    {% if tree_data.children|length > 1 %}
+                    <div class="distributor-line" style="left: calc({{ tree_data.children|length|add:"-1" }} * -15px); right: calc({{ tree_data.children|length|add:"-1" }} * -15px);"></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Barnbarn (Generation -2) -->
+            {% for child in tree_data.children %}
+            {% if child.children %}
+            <div class="generation">
+                {% if forloop.first %}
+                <div class="generation-label">Barnbarn</div>
+                {% endif %}
+                <div class="children-row">
+                    {% for grandchild in child.children %}
+                    <div class="person-box" onclick="location.href='?person_id={{ grandchild.id }}'">
+                        <div class="person-name">{{ grandchild.name }}</div>
+                        <div class="person-dates">
+                            {% if grandchild.years_display %}
+                                {{ grandchild.years_display }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            <!-- Info -->
+            <div class="text-center mt-5">
+                <p class="text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    Klicka på en person för att centrera trädet på den personen
+                </p>
+                <a href="{% url 'persons:detail' tree_data.person.id %}" class="btn btn-primary">
+                    <i class="bi bi-eye"></i> Visa {{ tree_data.person.name }}s detaljsida
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Ingen person vald -->
+    <div class="no-data">
+        <i class="bi bi-diagram-3" style="font-size: 4rem; color: #dee2e6;"></i>
+        <h4 class="mt-3">Välj en person för att visa släktträdet</h4>
+        <p class="text-muted">Använd dropdown-menyn ovan för att välja vilken person du vill börja från.</p>
+        {% if total_persons == 0 %}
+        <a href="{% url 'persons:create' %}" class="btn btn-primary mt-3">
+            <i class="bi bi-plus"></i> Skapa första personen
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
