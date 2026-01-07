@@ -37,7 +37,6 @@ backups/safety/
 .env
 
 # Project-specific exclusions
-CLAUDE.md
 *.db
 *.sqlite
 *.sqlite3
