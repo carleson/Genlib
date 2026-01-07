@@ -20,6 +20,7 @@ Genlib är ett komplement till släktforskningsprogram.
 - **📄 Dokumenthantering** - Ladda upp och organisera dokument kopplade till personer
 - **🗂️ Katalogstrukturer** - Använd fördefinierade mallar eller skapa egna för att organisera filer
 - **🏷️ Dokumenttyper** - Konfigurera olika dokumenttyper (personbevis, folkräkning, kyrkböcker, etc.)
+- **📥 GEDCOM-import** - Importera personer och relationer från GEDCOM-filer (släktforskningsstandard)
 - **📊 Dashboard** - Översikt med statistik och senaste aktivitet
 - **🔍 Sökning** - Sök och filtrera personer och dokument
 - **🔐 Säker autentisering** - Varje användare ser endast sina egna data
@@ -67,6 +68,13 @@ uv run python manage.py runserver
 
 ### Dokumentation
 
+**Snabblänkar:**
+- 📖 [Dokumentationsindex](DOCS_INDEX.md) - Översikt över all dokumentation
+- 🔧 [Teknisk dokumentation](TECHNICAL_DOCUMENTATION.md) - Komplett teknisk referens
+- 🗄️ [Databasschema](DATABASE_SCHEMA.md) - ER-diagram och queries
+- 💻 [Utvecklingsmiljö](CLAUDE.md) - Kodkonventioner och snabbstart
+
+**Guider:**
 - [Installation](INSTALLATION.md) - Detaljerad installationsguide
 - [Översikt](GENLIB_OVERVIEW.md) - Fullständig funktionsöversikt
 - [Bidra](CONTRIBUTING.md) - Guide för att bidra till projektet
@@ -103,6 +111,7 @@ Detta projekt är licensierat under MIT-licensen - se [LICENSE](LICENSE) för de
 - **📄 Document Management** - Upload and organize documents linked to persons
 - **🗂️ Directory Templates** - Use predefined templates or create your own for file organization
 - **🏷️ Document Types** - Configure different document types (certificates, census records, church books, etc.)
+- **📥 GEDCOM Import** - Import persons and relationships from GEDCOM files (genealogy standard)
 - **📊 Dashboard** - Overview with statistics and recent activity
 - **🔍 Search** - Search and filter persons and documents
 - **🔐 Secure Authentication** - Each user sees only their own data
@@ -150,6 +159,13 @@ Open your browser and go to: **http://localhost:8000**
 
 ### Documentation
 
+**Quick Links:**
+- 📖 [Documentation Index](DOCS_INDEX.md) - Overview of all documentation
+- 🔧 [Technical Documentation](TECHNICAL_DOCUMENTATION.md) - Complete technical reference
+- 🗄️ [Database Schema](DATABASE_SCHEMA.md) - ER diagrams and queries
+- 💻 [Development Environment](CLAUDE.md) - Code conventions and quick start
+
+**Guides:**
 - [Installation](INSTALLATION.md) - Detailed installation guide
 - [Overview](GENLIB_OVERVIEW.md) - Complete feature overview
 - [Contributing](CONTRIBUTING.md) - Guide for contributing to the project

@@ -32,6 +32,7 @@ dependencies = [
     { name = "django" },
     { name = "pillow" },
     { name = "psycopg2-binary" },
+    { name = "python-gedcom" },
 ]
 
 [package.metadata]
@@ -39,6 +40,7 @@ requires-dist = [
     { name = "django", specifier = ">=6.0" },
     { name = "pillow", specifier = ">=12.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.9" },
+    { name = "python-gedcom", specifier = ">=1.0.0" },
 ]
 
 [[package]]
@@ -149,6 +151,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/97/77/21b0ea2e1a73aa5fa9222b2a6b8ba325c43c3a8d54272839c991f2345656/psycopg2_binary-2.9.11-cp314-cp314-musllinux_1_2_riscv64.whl", hash = "sha256:32770a4d666fbdafab017086655bcddab791d7cb260a16679cc5a7338b64343b", size = 3044737 },
     { url = "https://files.pythonhosted.org/packages/67/69/f36abe5f118c1dca6d3726ceae164b9356985805480731ac6712a63f24f0/psycopg2_binary-2.9.11-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:c3cb3a676873d7506825221045bd70e0427c905b9c8ee8d6acd70cfcbd6e576d", size = 3347643 },
     { url = "https://files.pythonhosted.org/packages/e1/36/9c0c326fe3a4227953dfb29f5d0c8ae3b8eb8c1cd2967aa569f50cb3c61f/psycopg2_binary-2.9.11-cp314-cp314-win_amd64.whl", hash = "sha256:4012c9c954dfaccd28f94e84ab9f94e12df76b4afb22331b1f0d3154893a6316", size = 2803913 },
+]
+
+[[package]]
+name = "python-gedcom"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/c2/92300fb16e6983d64eb7db675cf118f0d467fddc913f5fbe23ad90b002b3/python-gedcom-1.0.0.tar.gz", hash = "sha256:675f5b0de55d76476d7acf391443aa3139320a2a9ee4bc8109d5f6798dfa0ed4", size = 32513 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/c0/20b56a9cf44fac3c25799e5a84b6a719ec7d7bc47501c9fe2b484bdabba5/python_gedcom-1.0.0-py2.py3-none-any.whl", hash = "sha256:66ade46993d6900970e8cfc91652fb9eeb8aef7bc40e3de871cd726e479b190e", size = 35530 },
 ]
 
 [[package]]

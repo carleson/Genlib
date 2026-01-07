@@ -321,7 +321,16 @@ User → Person → Document → DocumentType
 - Wizard för första gången applikationen startas
 - Skapar superuser
 - Konfigurerar media och backup-kataloger
+- **Valfri GEDCOM-import:** Importera personer och relationer från GEDCOM-fil
 - Markerar setup som klar
+
+**GEDCOM-import vid setup:**
+- Stöd för GEDCOM 5.5-format (.ged, .gedcom)
+- Importerar personer: namn, födelse-/dödsdatum
+- Importerar familjerelationer: make/maka, förälder/barn
+- Automatisk generering av unika directory_name för varje person
+- Inga katalogstrukturer skapas (sker vid dokumentuppladdning)
+- Använder `core.gedcom_importer.GedcomImporter`
 
 #### Backup & Restore
 - `backup_database`: Skapar ZIP-backup av databas + media
@@ -738,7 +747,7 @@ När man skapar dokument:
 9. Redirect till PersonDetailView
 ```
 
-### 5. Initial Setup
+### 5. Initial Setup (med GEDCOM-import)
 
 ```
 1. Första besök på applikationen
@@ -747,14 +756,39 @@ När man skapar dokument:
    a) Skapa superuser (username, password, email)
    b) Konfigurera media_directory_path
    c) Konfigurera backup_directory_path
+   d) Valfritt: Ladda upp GEDCOM-fil (.ged eller .gedcom)
 4. Submit
 5. User skapas
 6. SystemConfig uppdateras
-7. SetupStatus markeras som klar
-8. User loggas in automatiskt
-9. Redirect till dashboard
-10. Kör `python manage.py setup_initial_data` manuellt
+7. Om GEDCOM-fil uppladdad:
+   a) GedcomImporter skapas
+   b) Fil parsas med python-gedcom biblioteket
+   c) Alla INDI (personer) importeras:
+      - Extrahera namn, födelse-/dödsdatum
+      - Generera unikt directory_name
+      - Skapa Person-post
+   d) Alla FAM (familjer) importeras:
+      - Make/maka-relationer skapas
+      - Förälder/barn-relationer skapas
+   e) Statistik returneras (X personer, Y relationer)
+8. SetupStatus markeras som klar
+9. User loggas in automatiskt
+10. Redirect till dashboard med importstatistik
+11. Kör `python manage.py setup_initial_data` manuellt
     (skapar mallar och dokumenttyper)
+```
+
+**GEDCOM-exempel:**
+```gedcom
+0 @I1@ INDI
+1 NAME Johan /Andersson/
+1 BIRT
+2 DATE 1 JAN 1950
+
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
 ```
 
 ### 6. Backup & Restore

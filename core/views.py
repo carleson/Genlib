@@ -90,6 +90,29 @@ def initial_setup(request):
                     config.backup_directory_path = form.cleaned_data.get('backup_directory_path', 'backups')
                     config.save()
 
+                    # Importera GEDCOM-fil om uppladdad
+                    gedcom_file = form.cleaned_data.get('gedcom_file')
+                    if gedcom_file:
+                        from .gedcom_importer import GedcomImporter
+                        try:
+                            importer = GedcomImporter(user)
+                            stats = importer.import_file(gedcom_file)
+
+                            # Bygg resultatmeddelande
+                            result_msg = f"GEDCOM-import klar: {stats['persons_created']} personer och {stats['relationships_created']} relationer importerade."
+
+                            if stats['errors']:
+                                result_msg += f" {len(stats['errors'])} varningar (se logg för detaljer)."
+                                messages.warning(request, result_msg)
+                            else:
+                                messages.success(request, result_msg)
+
+                        except Exception as e:
+                            messages.error(
+                                request,
+                                f'Fel vid GEDCOM-import: {str(e)}. Installationen fortsätter utan GEDCOM-data.'
+                            )
+
                     # Markera setup som klar
                     setup_status = SetupStatus.load()
                     setup_status.is_completed = True

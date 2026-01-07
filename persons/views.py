@@ -103,18 +103,25 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         for rel in all_relationships:
             if rel.person_a == person:
                 other_person = rel.person_b
-                rel_type = rel.relationship_a_to_b
+                # rel.relationship_a_to_b är "min relation till andra personen"
+                # Vi vill visa "vad är andra personen till mig", så använd reciprocal
+                my_rel_to_other = rel.relationship_a_to_b
+                other_rel_to_me = RelationshipType.get_reciprocal(my_rel_to_other)
             else:
                 other_person = rel.person_a
-                rel_type = rel.relationship_b_to_a
+                # rel.relationship_b_to_a är "min relation till andra personen"
+                # Vi vill visa "vad är andra personen till mig", så använd reciprocal
+                my_rel_to_other = rel.relationship_b_to_a
+                other_rel_to_me = RelationshipType.get_reciprocal(my_rel_to_other)
 
-            if rel_type == RelationshipType.PARENT:
+            # Gruppera baserat på vad andra personen är till mig
+            if other_rel_to_me == RelationshipType.PARENT:
                 relationships_grouped['parents'].append((other_person, rel))
-            elif rel_type == RelationshipType.CHILD:
+            elif other_rel_to_me == RelationshipType.CHILD:
                 relationships_grouped['children'].append((other_person, rel))
-            elif rel_type == RelationshipType.SPOUSE:
+            elif other_rel_to_me == RelationshipType.SPOUSE:
                 relationships_grouped['spouses'].append((other_person, rel))
-            elif rel_type == RelationshipType.SIBLING:
+            elif other_rel_to_me == RelationshipType.SIBLING:
                 relationships_grouped['siblings'].append((other_person, rel))
 
         context['relationships_grouped'] = relationships_grouped
@@ -725,10 +732,16 @@ class PersonExportView(LoginRequiredMixin, View):
             for rel in person.get_all_relationships():
                 if rel.person_a == person:
                     other = rel.person_b
-                    rel_type = rel.get_relationship_a_to_b_display()
+                    # Använd reciprocal för att visa vad andra personen är till mig
+                    my_rel = rel.relationship_a_to_b
+                    other_rel = RelationshipType.get_reciprocal(my_rel)
+                    rel_type = RelationshipType(other_rel).label
                 else:
                     other = rel.person_a
-                    rel_type = rel.get_relationship_b_to_a_display()
+                    # Använd reciprocal för att visa vad andra personen är till mig
+                    my_rel = rel.relationship_b_to_a
+                    other_rel = RelationshipType.get_reciprocal(my_rel)
+                    rel_type = RelationshipType(other_rel).label
 
                 relationships.append({
                     'related_person': other.get_full_name(),

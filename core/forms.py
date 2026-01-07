@@ -90,6 +90,17 @@ class InitialSetupForm(forms.Form):
         })
     )
 
+    # GEDCOM-fil för import (valfritt)
+    gedcom_file = forms.FileField(
+        required=False,
+        label="GEDCOM-fil (valfritt)",
+        help_text="Importera personer och relationer från en GEDCOM-fil (.ged)",
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.ged,.gedcom'
+        })
+    )
+
     def clean(self):
         """Validera hela formuläret baserat på setup_type"""
         cleaned_data = super().clean()
@@ -120,6 +131,13 @@ class InitialSetupForm(forms.Form):
             # Validera användarnamn
             if username and User.objects.filter(username=username).exists():
                 self.add_error('username', f"Användarnamnet '{username}' är redan taget")
+
+            # Validera GEDCOM-fil om uppladdad
+            gedcom_file = cleaned_data.get('gedcom_file')
+            if gedcom_file:
+                # Kontrollera filnamn
+                if not (gedcom_file.name.endswith('.ged') or gedcom_file.name.endswith('.gedcom')):
+                    self.add_error('gedcom_file', 'Endast .ged eller .gedcom filer är tillåtna')
 
         elif setup_type == 'restore':
             # Validera fält för restore
