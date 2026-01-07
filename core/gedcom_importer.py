@@ -290,6 +290,8 @@ class GedcomImporter:
         logger.info(f"Familj {family_id}: Hittade {len(children_ids)} barn: {children_ids}")
 
         # Skapa förälder-barn-relationer
+        children_persons = []  # Spara barn-personer för syskon-relationer
+
         for child_id in children_ids:
             child = self.person_map.get(child_id)
 
@@ -297,6 +299,7 @@ class GedcomImporter:
                 logger.warning(f"Barn {child_id} finns inte i person_map (familj {family_id})")
                 continue
 
+            children_persons.append(child)
             logger.debug(f"Skapar relationer för barn {child}")
 
             # Skapa förälder-barn-relationer
@@ -315,6 +318,18 @@ class GedcomImporter:
                     RelationshipType.PARENT,
                     RelationshipType.CHILD
                 )
+
+        # Skapa syskon-relationer mellan alla barn i samma familj
+        if len(children_persons) > 1:
+            logger.debug(f"Skapar syskon-relationer för {len(children_persons)} barn i familj {family_id}")
+            for i, child1 in enumerate(children_persons):
+                for child2 in children_persons[i+1:]:
+                    logger.debug(f"Skapar syskon-relation: {child1} <-> {child2}")
+                    self._create_relationship(
+                        child1, child2,
+                        RelationshipType.SIBLING,
+                        RelationshipType.SIBLING
+                    )
 
     def _create_relationship(
         self,
