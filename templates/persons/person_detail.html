@@ -44,6 +44,13 @@
                 </a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
+                    <a class="dropdown-item" href="{% url 'persons:set_main_person' person.id %}"
+                       onclick="return confirm('Vill du ange {{ person.get_full_name }} som huvudperson?');">
+                        <i class="bi bi-person-badge"></i> Ange som huvudperson
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
                     <form method="post" action="{% url 'persons:sync_documents' person.id %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="dropdown-item" onclick="return confirm('Detta kommer att synkronisera dokument från filsystemet. Vill du fortsätta?');">

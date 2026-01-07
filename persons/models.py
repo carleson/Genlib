@@ -21,6 +21,11 @@ class Person(models.Model):
         on_delete=models.SET_NULL,
         verbose_name="Mall använd"
     )
+    is_main_person = models.BooleanField(
+        default=False,
+        verbose_name="Huvudperson",
+        help_text="Huvudperson används som standard i trädvyn"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Skapad")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Uppdaterad")
 

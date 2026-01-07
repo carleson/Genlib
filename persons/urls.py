@@ -8,7 +8,7 @@ from .views import (
     ChecklistReportView,
     PersonRenameView, PersonDuplicateView, PersonExportView,
     PersonChronologicalReportView, PersonDocumentSyncView,
-    FamilyTreeView, toggle_bookmark
+    FamilyTreeView, toggle_bookmark, set_main_person
 )
 
 app_name = 'persons'
@@ -56,4 +56,7 @@ urlpatterns = [
     path('<int:pk>/toggle-bookmark/',
          toggle_bookmark,
          name='toggle_bookmark'),
+    path('<int:pk>/set-main-person/',
+         set_main_person,
+         name='set_main_person'),
 ]

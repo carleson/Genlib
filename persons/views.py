@@ -1197,17 +1197,26 @@ class FamilyTreeView(LoginRequiredMixin, View):
                 user=request.user
             ).first()
 
-        # Om ingen person vald, välj första person eller en med många relationer
+        # Om ingen person vald, välj huvudperson, annars person med många relationer
         if not selected_person and persons.exists():
-            # Försök hitta en person med flest relationer
-            person_with_most_rels = None
-            max_rels = 0
-            for person in persons[:50]:  # Kolla första 50
-                rel_count = person.get_all_relationships().count()
-                if rel_count > max_rels:
-                    max_rels = rel_count
-                    person_with_most_rels = person
-            selected_person = person_with_most_rels or persons.first()
+            # Först, försök hitta huvudpersonen
+            main_person = Person.objects.filter(
+                user=request.user,
+                is_main_person=True
+            ).first()
+
+            if main_person:
+                selected_person = main_person
+            else:
+                # Annars, försök hitta en person med flest relationer
+                person_with_most_rels = None
+                max_rels = 0
+                for person in persons[:50]:  # Kolla första 50
+                    rel_count = person.get_all_relationships().count()
+                    if rel_count > max_rels:
+                        max_rels = rel_count
+                        person_with_most_rels = person
+                selected_person = person_with_most_rels or persons.first()
 
         # Bygg träddata med flera generationer
         tree_data = None
@@ -1361,3 +1370,19 @@ def toggle_bookmark(request, pk):
         'success': True,
         'is_bookmarked': is_bookmarked
     })
+
+
+@login_required
+def set_main_person(request, pk):
+    """Sätt person som huvudperson"""
+    person = get_object_or_404(Person, pk=pk, user=request.user)
+
+    # Ta bort huvudperson-flaggan från alla andra personer
+    Person.objects.filter(user=request.user).exclude(pk=pk).update(is_main_person=False)
+
+    # Sätt den valda personen som huvudperson
+    person.is_main_person = True
+    person.save()
+
+    messages.success(request, f"{person.get_full_name()} är nu angiven som huvudperson.")
+    return redirect('persons:detail', pk=pk)
