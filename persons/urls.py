@@ -8,7 +8,7 @@ from .views import (
     ChecklistReportView,
     PersonRenameView, PersonDuplicateView, PersonExportView,
     PersonChronologicalReportView, PersonDocumentSyncView,
-    FamilyTreeView
+    FamilyTreeView, toggle_bookmark
 )
 
 app_name = 'persons'
@@ -53,4 +53,7 @@ urlpatterns = [
     path('<int:pk>/sync-documents/',
          PersonDocumentSyncView.as_view(),
          name='sync_documents'),
+    path('<int:pk>/toggle-bookmark/',
+         toggle_bookmark,
+         name='toggle_bookmark'),
 ]

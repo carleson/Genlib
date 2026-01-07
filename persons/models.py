@@ -398,3 +398,27 @@ class PersonChecklistItem(models.Model):
             self.completed_at = None
 
         super().save(*args, **kwargs)
+
+
+class BookmarkedPerson(models.Model):
+    """Bokmärken för personer"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Användare")
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='bookmarks',
+        verbose_name="Person"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Bokmärkt datum")
+
+    class Meta:
+        verbose_name = "Bokmärkt person"
+        verbose_name_plural = "Bokmärkta personer"
+        ordering = ['-created_at']
+        unique_together = [['user', 'person']]
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.person.get_full_name()}"

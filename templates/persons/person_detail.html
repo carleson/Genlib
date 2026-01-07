@@ -2,6 +2,28 @@
 
 {% block title %}{{ person.get_full_name }} - Genlib{% endblock %}
 
+{% block extra_css %}
+<style>
+    #bookmark-star {
+        cursor: pointer;
+        color: #6c757d;
+        transition: color 0.2s ease;
+    }
+
+    #bookmark-star:hover {
+        color: #ffc107;
+    }
+
+    #bookmark-star.bookmarked {
+        color: #ffc107;
+    }
+
+    #bookmark-star.bookmarked:hover {
+        color: #ff9800;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>{{ person.get_full_name }}</h1>
@@ -51,8 +73,14 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <i class="bi bi-person"></i> Personuppgifter
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-person"></i> Personuppgifter</span>
+                <button id="bookmark-star"
+                        class="btn btn-link p-0 text-decoration-none {% if is_bookmarked %}bookmarked{% endif %}"
+                        data-person-id="{{ person.id }}"
+                        title="{% if is_bookmarked %}Ta bort bokmärke{% else %}Lägg till bokmärke{% endif %}">
+                    <i class="bi {% if is_bookmarked %}bi-star-fill{% else %}bi-star{% endif %}" style="font-size: 1.5rem;"></i>
+                </button>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -395,6 +423,62 @@ document.addEventListener('DOMContentLoaded', function() {
         surnameInput.addEventListener('input', generateDirectoryName);
         // Generera initialt värde
         generateDirectoryName();
+    }
+
+    // Bokmärkesfunktionalitet
+    const bookmarkStar = document.getElementById('bookmark-star');
+    if (bookmarkStar) {
+        bookmarkStar.addEventListener('click', function(e) {
+            e.preventDefault();
+            const personId = this.dataset.personId;
+            const icon = this.querySelector('i');
+            const button = this;
+
+            // Anropa backend för att toggle bokmärke
+            fetch(`/persons/${personId}/toggle-bookmark/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Uppdatera UI
+                    if (data.is_bookmarked) {
+                        icon.classList.remove('bi-star');
+                        icon.classList.add('bi-star-fill');
+                        button.classList.add('bookmarked');
+                        button.title = 'Ta bort bokmärke';
+                    } else {
+                        icon.classList.remove('bi-star-fill');
+                        icon.classList.add('bi-star');
+                        button.classList.remove('bookmarked');
+                        button.title = 'Lägg till bokmärke';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Fel vid toggle av bokmärke:', error);
+            });
+        });
+    }
+
+    // Hjälpfunktion för att hämta CSRF-token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 });
 </script>

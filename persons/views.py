@@ -18,7 +18,7 @@ from datetime import datetime
 
 from .models import (
     Person, PersonRelationship, RelationshipType,
-    PersonChecklistItem, ChecklistCategory
+    PersonChecklistItem, ChecklistCategory, BookmarkedPerson
 )
 from .forms import PersonForm, PersonRelationshipForm, PersonRenameForm, PersonExportForm
 from documents.models import Document, DocumentType
@@ -59,6 +59,14 @@ class PersonListView(LoginRequiredMixin, ListView):
         is_alive = self.request.GET.get('is_alive')
         if is_alive == 'on':
             queryset = queryset.filter(death_date__isnull=True)
+
+        # Filter: Bokmärkta personer
+        is_bookmarked = self.request.GET.get('is_bookmarked')
+        if is_bookmarked == 'on':
+            bookmarked_person_ids = BookmarkedPerson.objects.filter(
+                user=self.request.user
+            ).values_list('person_id', flat=True)
+            queryset = queryset.filter(id__in=bookmarked_person_ids)
 
         # Sortering med svensk alfabetisk ordning
         sort = self.request.GET.get('sort', 'surname')
@@ -117,6 +125,7 @@ class PersonListView(LoginRequiredMixin, ListView):
         context['sort'] = self.request.GET.get('sort', 'surname')
         context['has_documents'] = self.request.GET.get('has_documents', '')
         context['is_alive'] = self.request.GET.get('is_alive', '')
+        context['is_bookmarked'] = self.request.GET.get('is_bookmarked', '')
 
         # Räkna totalt antal personer (utan filter)
         context['total_persons'] = Person.objects.filter(user=self.request.user).count()
@@ -198,6 +207,11 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         # Checklist-statistik
         context['total_checklist_items'] = person.checklist_items.count()
         context['completed_checklist_items'] = person.checklist_items.filter(is_completed=True).count()
+
+        # Bokmärkesstatus
+        context['is_bookmarked'] = BookmarkedPerson.objects.filter(
+            user=self.request.user, person=person
+        ).exists()
 
         return context
 
@@ -1324,3 +1338,26 @@ class FamilyTreeView(LoginRequiredMixin, View):
             tree['children'].append(child_data)
 
         return tree
+
+
+@login_required
+def toggle_bookmark(request, pk):
+    """Toggle bokmärke för en person"""
+    person = get_object_or_404(Person, pk=pk, user=request.user)
+
+    # Försök hämta befintligt bokmärke
+    bookmark = BookmarkedPerson.objects.filter(user=request.user, person=person).first()
+
+    if bookmark:
+        # Ta bort bokmärke
+        bookmark.delete()
+        is_bookmarked = False
+    else:
+        # Skapa nytt bokmärke
+        BookmarkedPerson.objects.create(user=request.user, person=person)
+        is_bookmarked = True
+
+    return JsonResponse({
+        'success': True,
+        'is_bookmarked': is_bookmarked
+    })
