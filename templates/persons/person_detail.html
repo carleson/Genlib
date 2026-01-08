@@ -67,6 +67,19 @@
                 </a></li>
             </ul>
         </div>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-archive"></i> Arkiv
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="https://sok.riksarkivet.se/?Sokord=&f=True&EndastDigitaliserat=false&TranskriberadText=false&Fritext=&Namn={{ person.firstname|urlencode }}+{{ person.surname|urlencode }}&Ort=&DatumFran=&DatumTill=&AvanceradSok=true" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i> Riksarkivet
+                </a></li>
+                <li><a class="dropdown-item" href="https://app.arkivdigital.se/register-collections/register-posts?query={{ person.firstname|urlencode }}%20{{ person.surname|urlencode }}{% if person.birth_date %}%20{{ person.birth_date|date:"Y-m-d"|urlencode }}{% endif %}&register_collection=29" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i> Sveriges befolkning 1940-1990 (AD)
+                </a></li>
+            </ul>
+        </div>
         <a href="{% url 'persons:delete' person.id %}" class="btn btn-danger">
             <i class="bi bi-trash"></i> Ta bort
         </a>
