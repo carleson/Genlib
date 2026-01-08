@@ -190,3 +190,27 @@ class InitialSetupForm(forms.Form):
                 )
 
         return path_str
+
+
+class GedcomImportForm(forms.Form):
+    """Formulär för GEDCOM-import i befintlig installation"""
+
+    gedcom_file = forms.FileField(
+        label="GEDCOM-fil",
+        help_text="Välj en GEDCOM-fil (.ged eller .gedcom) att importera",
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.ged,.gedcom'
+        })
+    )
+
+    def clean_gedcom_file(self):
+        """Validera GEDCOM-filen"""
+        gedcom_file = self.cleaned_data.get('gedcom_file')
+
+        if gedcom_file:
+            # Kontrollera filnamn
+            if not (gedcom_file.name.endswith('.ged') or gedcom_file.name.endswith('.gedcom')):
+                raise forms.ValidationError('Endast .ged eller .gedcom filer är tillåtna')
+
+        return gedcom_file

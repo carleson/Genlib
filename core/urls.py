@@ -7,6 +7,7 @@ from .views import (
     download_backup,
     delete_backup,
     restore_backup,
+    gedcom_import,
 )
 
 app_name = 'core'
@@ -19,4 +20,5 @@ urlpatterns = [
     path('backup/download/<str:filename>/', download_backup, name='download_backup'),
     path('backup/delete/<str:filename>/', delete_backup, name='delete_backup'),
     path('backup/restore/', restore_backup, name='restore_backup'),
+    path('gedcom/import/', gedcom_import, name='gedcom_import'),
 ]

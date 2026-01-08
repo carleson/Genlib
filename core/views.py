@@ -9,7 +9,7 @@ from django.http import FileResponse, HttpResponse
 from persons.models import Person
 from documents.models import Document
 from .models import SetupStatus, SystemConfig
-from .forms import InitialSetupForm
+from .forms import InitialSetupForm, GedcomImportForm
 from pathlib import Path
 from datetime import datetime
 import os
@@ -351,3 +351,59 @@ def restore_backup(request):
             return redirect('core:backup_list')
 
     return redirect('core:backup_list')
+
+
+@login_required
+def gedcom_import(request):
+    """Importera GEDCOM-fil för befintlig installation"""
+    # Endast admin-användare har tillgång
+    if not request.user.is_staff:
+        messages.error(request, 'Endast administratörer har tillgång till GEDCOM-import')
+        return redirect('core:dashboard')
+
+    if request.method == 'POST':
+        form = GedcomImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            gedcom_file = form.cleaned_data['gedcom_file']
+
+            try:
+                from .gedcom_importer import GedcomImporter
+
+                importer = GedcomImporter(request.user)
+                stats = importer.import_file(gedcom_file)
+
+                # Bygg resultatmeddelande
+                result_msg = (
+                    f"GEDCOM-import klar: {stats['persons_created']} personer och "
+                    f"{stats['relationships_created']} relationer importerade."
+                )
+
+                if stats['errors']:
+                    result_msg += f" {len(stats['errors'])} varningar uppstod."
+                    messages.warning(request, result_msg)
+
+                    # Visa första 5 felen
+                    for error in stats['errors'][:5]:
+                        messages.warning(request, f"Varning: {error}")
+
+                    if len(stats['errors']) > 5:
+                        messages.info(
+                            request,
+                            f"...och {len(stats['errors']) - 5} fler varningar. Se logg för detaljer."
+                        )
+                else:
+                    messages.success(request, result_msg)
+
+                return redirect('persons:list')
+
+            except Exception as e:
+                messages.error(request, f'Fel vid GEDCOM-import: {str(e)}')
+                return render(request, 'core/gedcom_import.html', {'form': form})
+    else:
+        form = GedcomImportForm()
+
+    context = {
+        'form': form,
+    }
+
+    return render(request, 'core/gedcom_import.html', context)

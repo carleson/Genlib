@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Importera GEDCOM - Genlib{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Importera GEDCOM-fil
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <strong>Information om GEDCOM-import:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>GEDCOM-filen måste vara i format .ged eller .gedcom</li>
+                        <li>Alla personer och relationer importeras till ditt konto</li>
+                        <li>Befintliga personer påverkas inte, endast nya personer läggs till</li>
+                        <li>Katalogstrukturer skapas inte förrän du lägger till dokument till personerna</li>
+                        <li>Import kan ta lite tid beroende på filstorlek</li>
+                    </ul>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.gedcom_file.id_for_label }}" class="form-label">
+                            <strong>{{ form.gedcom_file.label }}</strong>
+                        </label>
+                        {{ form.gedcom_file }}
+                        {% if form.gedcom_file.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.gedcom_file.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.gedcom_file.help_text }}</div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Viktigt:</strong> Se till att GEDCOM-filen är korrekt formaterad.
+                        Eventuella fel i filen kommer att loggas och visas efter importen.
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Avbryt
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Importera GEDCOM
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-question-circle-fill"></i> Hjälp
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Vad är en GEDCOM-fil?</h6>
+                    <p class="text-muted small">
+                        GEDCOM (Genealogical Data Communication) är ett standardformat för att utbyta
+                        släktforskningsdata mellan olika program. De flesta släktforskningsprogram
+                        kan exportera data till GEDCOM-format.
+                    </p>
+
+                    <h6 class="mt-3">Vanliga problem</h6>
+                    <ul class="text-muted small">
+                        <li>Om importen misslyckas, kontrollera att filen är i rätt format (.ged eller .gedcom)</li>
+                        <li>Personer utan namn hoppas över automatiskt</li>
+                        <li>Relationer som refererar till personer som inte finns ignoreras</li>
+                        <li>Detaljerade felmeddelanden visas efter importen och loggas i systemet</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
