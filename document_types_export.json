@@ -1,0 +1,152 @@
+[
+  {
+    "name": "BIS - Befolkningen i Sverige",
+    "target_directory": "dokument/folkräkning",
+    "filename": "BIS - Befolkningen i Sverige.txt",
+    "description": "BIS - Befolkningen i Sverige"
+  },
+  {
+    "name": "Bouppteckning",
+    "target_directory": "dokument/död",
+    "filename": "bouppteckning.jpg",
+    "description": "Bouppteckning"
+  },
+  {
+    "name": "Döda, delar av Sverige (ArkivDigital)",
+    "target_directory": "dokument/död",
+    "filename": "döda-arkivdigital.txt",
+    "description": "Döda, delar av Sverige (ArkivDigital)"
+  },
+  {
+    "name": "Sveriges befolkning 1880-1920",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1980-1920.txt",
+    "description": "Sveriges befolkning 1980-1920"
+  },
+  {
+    "name": "Sveriges befolkning 1890",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1890.txt",
+    "description": "Sveriges befolkning 1890"
+  },
+  {
+    "name": "Sveriges befolkning 1900",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1900",
+    "description": "Sveriges befolkning 1900"
+  },
+  {
+    "name": "Sveriges befolkning 1940",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1940.txt",
+    "description": "Sveriges befolkning 1940"
+  },
+  {
+    "name": "Sveriges befolkning 1940-1990",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1940-1990.txt",
+    "description": "Sveriges befolkning 1940-1990.txt"
+  },
+  {
+    "name": "Sveriges befolkning 1950",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1950.txt",
+    "description": "Sveriges befolkning 1950"
+  },
+  {
+    "name": "Sveriges befolkning 1960",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1960.txt",
+    "description": "Sveriges befolkning 1960"
+  },
+  {
+    "name": "Sveriges befolkning 1970",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1970.txt",
+    "description": "Sveriges befolkning 1970"
+  },
+  {
+    "name": "Sveriges befolkning 1975",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1975.txt",
+    "description": "Sveriges befolkning 1975"
+  },
+  {
+    "name": "Sveriges befolkning 1980",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1980.txt",
+    "description": "Sveriges befolkning 1980"
+  },
+  {
+    "name": "Sveriges befolkning 1985",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1985.txt",
+    "description": "Sveriges befolkning 1985"
+  },
+  {
+    "name": "Sveriges befolkning 1990",
+    "target_directory": "dokument/folkräkning",
+    "filename": "Sveriges befolkning 1990.txt",
+    "description": "Sveriges befolkning 1990"
+  },
+  {
+    "name": "Sveriges dödsbok - 1860-2017",
+    "target_directory": "dokument/död",
+    "filename": "Sveriges dödsbok - 1860-2017.txt",
+    "description": "Sveriges dödsbok - 1860-2017"
+  },
+  {
+    "name": "anteckning",
+    "target_directory": "dokument/anteckningar",
+    "filename": "anteckning.txt",
+    "description": "Allmän anteckning"
+  },
+  {
+    "name": "dödsbevis",
+    "target_directory": "dokument/död",
+    "filename": "dödsbevis.pdf",
+    "description": "Dödsbevis"
+  },
+  {
+    "name": "folkräkning",
+    "target_directory": "dokument/folkräkning",
+    "filename": "folkräkning.txt",
+    "description": "Folkräkningsuppgifter"
+  },
+  {
+    "name": "födelseattest",
+    "target_directory": "dokument/födelse",
+    "filename": "födelseattest.pdf",
+    "description": "Födelseattest från kyrkan"
+  },
+  {
+    "name": "kyrkbok",
+    "target_directory": "dokument/kyrkböcker",
+    "filename": "kyrkbok.pdf",
+    "description": "Utdrag från kyrkbok"
+  },
+  {
+    "name": "personbevis",
+    "target_directory": "dokument",
+    "filename": "personbevis.pdf",
+    "description": "Personbevis från Skatteverket"
+  },
+  {
+    "name": "porträtt",
+    "target_directory": "bilder/porträtt",
+    "filename": "porträtt.jpg",
+    "description": "Porträttfoto"
+  },
+  {
+    "name": "vigselbevis",
+    "target_directory": "dokument/vigsel",
+    "filename": "vigselbevis.pdf",
+    "description": "Vigselbevis"
+  },
+  {
+    "name": "värnpliktskort",
+    "target_directory": "dokument/militär",
+    "filename": "värnpliktskort.txt",
+    "description": "värnpliktskort"
+  }
+]
