@@ -8,6 +8,7 @@ from .views import (
     ChecklistReportView,
     PersonRenameView, PersonDuplicateView, PersonExportView,
     PersonChronologicalReportView, PersonDocumentSyncView,
+    SetProfileImageView, ImageUploadView, ImageDeleteView,
     FamilyTreeView, toggle_bookmark, set_main_person
 )
 
@@ -53,6 +54,15 @@ urlpatterns = [
     path('<int:pk>/sync-documents/',
          PersonDocumentSyncView.as_view(),
          name='sync_documents'),
+    path('<int:pk>/set-profile-image/<int:document_pk>/',
+         SetProfileImageView.as_view(),
+         name='set_profile_image'),
+    path('<int:pk>/upload-images/',
+         ImageUploadView.as_view(),
+         name='upload_images'),
+    path('<int:pk>/delete-image/<int:image_pk>/',
+         ImageDeleteView.as_view(),
+         name='delete_image'),
     path('<int:pk>/toggle-bookmark/',
          toggle_bookmark,
          name='toggle_bookmark'),

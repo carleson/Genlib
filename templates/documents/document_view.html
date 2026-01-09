@@ -51,9 +51,9 @@
                     <!-- Visa PDF i iframe -->
                     <div class="mb-4">
                         <h5 class="mb-3"><i class="bi bi-file-earmark-pdf"></i> PDF Förhandsgranskning</h5>
-                        <iframe src="{{ object.file.url }}" width="100%" height="600px" class="border rounded"></iframe>
+                        <iframe src="{{ object.get_file_url }}" width="100%" height="600px" class="border rounded"></iframe>
                         <div class="mt-2">
-                            <a href="{{ object.file.url }}" class="btn btn-sm btn-primary" download>
+                            <a href="{{ object.get_file_url }}" class="btn btn-sm btn-primary" download>
                                 <i class="bi bi-download"></i> Ladda ner PDF
                             </a>
                         </div>
@@ -62,9 +62,9 @@
                     <!-- Visa bilder -->
                     <div class="mb-4">
                         <h5 class="mb-3"><i class="bi bi-image"></i> Bild</h5>
-                        <img src="{{ object.file.url }}" alt="{{ object.filename }}" class="img-fluid border rounded" style="max-height: 600px;">
+                        <img src="{{ object.get_file_url }}" alt="{{ object.filename }}" class="img-fluid border rounded" style="max-height: 600px;">
                         <div class="mt-2">
-                            <a href="{{ object.file.url }}" class="btn btn-sm btn-primary" download>
+                            <a href="{{ object.get_file_url }}" class="btn btn-sm btn-primary" download>
                                 <i class="bi bi-download"></i> Ladda ner bild
                             </a>
                         </div>
@@ -72,7 +72,7 @@
                     {% elif object.file %}
                     <div class="alert alert-info mb-4">
                         <i class="bi bi-info-circle"></i> Filtyp {{ object.file_type|upper }} kan inte redigeras eller förhandsgranskas.
-                        <a href="{{ object.file.url }}" class="btn btn-sm btn-primary ms-2" download>
+                        <a href="{{ object.get_file_url }}" class="btn btn-sm btn-primary ms-2" download>
                             <i class="bi bi-download"></i> Ladda ner
                         </a>
                     </div>
@@ -91,17 +91,147 @@
                         {% endif %}
                     </div>
 
+                    <!-- EXIF-data för bilder -->
+                    {% if is_image %}
+                    <hr>
+                    <h5 class="mb-3"><i class="bi bi-camera"></i> EXIF-data</h5>
+                    <p class="text-muted small">Metadata som lagras i bildfilen. Lämna tomma fält för att inte ändra dem.</p>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_datetime.id_for_label }}" class="form-label">{{ form.exif_datetime.label }}</label>
+                                {{ form.exif_datetime }}
+                                {% if form.exif_datetime.help_text %}
+                                <div class="form-text">{{ form.exif_datetime.help_text }}</div>
+                                {% endif %}
+                                {% if form.exif_datetime.errors %}
+                                <div class="text-danger">{{ form.exif_datetime.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_datetime_original.id_for_label }}" class="form-label">{{ form.exif_datetime_original.label }}</label>
+                                {{ form.exif_datetime_original }}
+                                {% if form.exif_datetime_original.help_text %}
+                                <div class="form-text">{{ form.exif_datetime_original.help_text }}</div>
+                                {% endif %}
+                                {% if form.exif_datetime_original.errors %}
+                                <div class="text-danger">{{ form.exif_datetime_original.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_make.id_for_label }}" class="form-label">{{ form.exif_make.label }}</label>
+                                {{ form.exif_make }}
+                                {% if form.exif_make.errors %}
+                                <div class="text-danger">{{ form.exif_make.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_model.id_for_label }}" class="form-label">{{ form.exif_model.label }}</label>
+                                {{ form.exif_model }}
+                                {% if form.exif_model.errors %}
+                                <div class="text-danger">{{ form.exif_model.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_artist.id_for_label }}" class="form-label">{{ form.exif_artist.label }}</label>
+                                {{ form.exif_artist }}
+                                {% if form.exif_artist.errors %}
+                                <div class="text-danger">{{ form.exif_artist.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.exif_copyright.id_for_label }}" class="form-label">{{ form.exif_copyright.label }}</label>
+                                {{ form.exif_copyright }}
+                                {% if form.exif_copyright.errors %}
+                                <div class="text-danger">{{ form.exif_copyright.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.exif_description.id_for_label }}" class="form-label">{{ form.exif_description.label }}</label>
+                        {{ form.exif_description }}
+                        {% if form.exif_description.errors %}
+                        <div class="text-danger">{{ form.exif_description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'persons:detail' object.person.id %}" class="btn btn-secondary">
                             <i class="bi bi-x"></i> Avbryt
                         </a>
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-check"></i> {% if is_text_file %}Spara fil och metadata{% else %}Spara metadata{% endif %}
-                        </button>
+                        <div>
+                            {% if is_image %}
+                            <button type="button" class="btn btn-info" onclick="fillPersonMetadata()">
+                                <i class="bi bi-person-fill"></i> Fyll i persondata
+                            </button>
+                            {% endif %}
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check"></i>
+                                {% if is_text_file %}
+                                    Spara fil och metadata
+                                {% elif is_image %}
+                                    Spara metadata och EXIF
+                                {% else %}
+                                    Spara metadata
+                                {% endif %}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+{% if is_image %}
+<script>
+function fillPersonMetadata() {
+    const personInfo = "{{ person_metadata|escapejs }}";
+    const descriptionField = document.querySelector('textarea[name="exif_description"]');
+
+    if (descriptionField) {
+        // Om fältet är tomt, fyll i persondata
+        // Om det redan har innehåll, lägg till persondata på en ny rad
+        if (descriptionField.value.trim() === '') {
+            descriptionField.value = personInfo;
+        } else {
+            // Kolla om persondata redan finns i texten
+            if (!descriptionField.value.includes(personInfo)) {
+                descriptionField.value = descriptionField.value.trim() + '\n' + personInfo;
+            }
+        }
+
+        // Ge visuell feedback
+        descriptionField.focus();
+        descriptionField.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            descriptionField.style.backgroundColor = '';
+        }, 1000);
+    }
+}
+</script>
+{% endif %}
 {% endblock %}

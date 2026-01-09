@@ -271,12 +271,21 @@ class DocumentDeleteView(LoginRequiredMixin, DeleteView):
         person_id = document.person.pk
         filename = document.filename
 
+        # Rensa profile_image om detta dokument är satt som profilbild
+        if hasattr(document, 'profile_for') and document.profile_for.exists():
+            for person in document.profile_for.all():
+                person.profile_image = None
+                person.save()
+
         # Ta bort filen från filsystemet
-        if document.file:
-            try:
-                document.file.delete()
-            except Exception as e:
-                messages.warning(self.request, f'Kunde inte ta bort filen: {e}')
+        try:
+            from pathlib import Path
+            # Konstruera full sökväg till filen
+            file_path = Path(document.person.get_full_directory_path()) / document.relative_path
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            messages.warning(self.request, f'Kunde inte ta bort filen: {e}')
 
         messages.success(self.request, f'Dokumentet "{filename}" har tagits bort.')
         self.success_url = reverse_lazy('persons:detail', kwargs={'pk': person_id})
@@ -313,6 +322,31 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
             except Exception as e:
                 initial['file_content'] = f'Kunde inte läsa filen: {e}\nSökväg: {file_path if "file_path" in locals() else "okänd"}'
 
+        # Läs EXIF-data för bilder
+        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            try:
+                from pathlib import Path
+                from .exif_utils import read_exif_data, get_common_exif_fields
+
+                # Konstruera filsökväg
+                file_path = Path(self.object.person.get_full_directory_path()) / self.object.relative_path
+
+                if file_path.exists():
+                    exif_data = read_exif_data(file_path)
+                    common_exif = get_common_exif_fields(exif_data)
+
+                    # Fyll i EXIF-fält i formuläret
+                    initial['exif_datetime'] = common_exif.get('DateTime', '')
+                    initial['exif_datetime_original'] = common_exif.get('DateTimeOriginal', '')
+                    initial['exif_make'] = common_exif.get('Make', '')
+                    initial['exif_model'] = common_exif.get('Model', '')
+                    initial['exif_artist'] = common_exif.get('Artist', '')
+                    initial['exif_copyright'] = common_exif.get('Copyright', '')
+                    initial['exif_description'] = common_exif.get('ImageDescription', '')
+
+            except Exception as e:
+                print(f'Kunde inte läsa EXIF-data: {e}')
+
         return initial
 
     def get_context_data(self, **kwargs):
@@ -320,37 +354,147 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
         context['is_text_file'] = self.object.file and self.object.file_type in ['txt', 'md']
         context['is_pdf'] = self.object.file and self.object.file_type == 'pdf'
         context['is_image'] = self.object.file and self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']
+
+        # För bilder, lägg till personens information för auto-ifyllning av metadata
+        if context['is_image']:
+            person = self.object.person
+            person_info = person.get_full_name()
+
+            # Lägg till datum om de finns
+            if person.birth_date or person.death_date:
+                dates = []
+                if person.birth_date:
+                    dates.append(person.birth_date.strftime('%Y-%m-%d'))
+                else:
+                    dates.append('')
+
+                if person.death_date:
+                    dates.append(person.death_date.strftime('%Y-%m-%d'))
+
+                if len(dates) == 2:
+                    person_info += f" ({dates[0]} - {dates[1]})"
+                elif dates[0]:
+                    person_info += f" ({dates[0]})"
+
+            context['person_metadata'] = person_info
+
         return context
 
     def form_valid(self, form):
+        from pathlib import Path
+
+        old_filename = self.object.filename
+        new_filename = form.cleaned_data.get('filename')
+        filename_changed = False
+
+        # Hantera filnamnsändring
+        if old_filename != new_filename:
+            try:
+                # Konstruera gamla sökvägen baserat på relative_path (den faktiska filen)
+                old_path = Path(self.object.person.get_full_directory_path()) / self.object.relative_path
+
+                # Extrahera aktuellt filnamn från relative_path
+                actual_old_filename = Path(self.object.relative_path).name
+
+                # Uppdatera relative_path med nya filnamnet
+                new_relative_path = str(Path(self.object.relative_path).parent / new_filename)
+                new_path = Path(self.object.person.get_full_directory_path()) / new_relative_path
+
+                # Debug-information
+                print(f"Omdöpning:")
+                print(f"  old_path: {old_path}")
+                print(f"  new_path: {new_path}")
+                print(f"  old_path exists: {old_path.exists()}")
+
+                # Byt namn på filen i filsystemet
+                if old_path.exists():
+                    # Först döp om filen fysiskt
+                    old_path.rename(new_path)
+                    print(f"  Filen har döpts om i filsystemet")
+
+                    # Uppdatera Document-objektet (men spara inte än, det görs senare)
+                    self.object.filename = new_filename
+                    self.object.relative_path = new_relative_path
+
+                    # Uppdatera file.name också
+                    self.object.file.name = f"persons/{self.object.person.directory_name}/{new_relative_path}"
+
+                    filename_changed = True
+                    messages.success(self.request, f'Filen har döpts om från "{actual_old_filename}" till "{new_filename}"')
+                else:
+                    messages.error(self.request, f'Filen kunde inte hittas: {old_path}')
+                    return self.form_invalid(form)
+
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                messages.error(self.request, f'Kunde inte döpa om filen: {e}')
+                return self.form_invalid(form)
+
         # Spara textfilinnehåll tillbaka till filen
         if self.object.file_type in ['txt', 'md']:
             file_content = form.cleaned_data.get('file_content')
             if file_content is not None:
                 try:
                     # Bygg filsökvägen från metadata
-                    file_path = os.path.join(
-                        get_media_root(),
-                        'persons',
-                        self.object.person.directory_name,
-                        self.object.document_type.target_directory,
-                        self.object.filename
-                    )
+                    file_path = Path(self.object.person.get_full_directory_path()) / self.object.relative_path
 
                     # Skapa katalogstruktur om den inte finns
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    file_path.parent.mkdir(parents=True, exist_ok=True)
 
                     # Skriv till filen
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(file_content)
-                    messages.success(self.request, f'Filen har sparats till: {file_path}')
+                    messages.success(self.request, f'Textfilen har sparats')
                 except Exception as e:
                     messages.error(self.request, f'Kunde inte spara filen: {e}')
                     return self.form_invalid(form)
-        else:
-            messages.success(self.request, 'Källinformation har uppdaterats!')
 
-        return super().form_valid(form)
+        # Hantera EXIF-data för bilder
+        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            try:
+                from .exif_utils import write_exif_data
+
+                # Samla EXIF-data från formuläret
+                exif_updates = {
+                    'DateTime': form.cleaned_data.get('exif_datetime', ''),
+                    'DateTimeOriginal': form.cleaned_data.get('exif_datetime_original', ''),
+                    'Make': form.cleaned_data.get('exif_make', ''),
+                    'Model': form.cleaned_data.get('exif_model', ''),
+                    'Artist': form.cleaned_data.get('exif_artist', ''),
+                    'Copyright': form.cleaned_data.get('exif_copyright', ''),
+                    'ImageDescription': form.cleaned_data.get('exif_description', ''),
+                }
+
+                # Ta bort tomma värden
+                exif_updates = {k: v for k, v in exif_updates.items() if v}
+
+                if exif_updates:
+                    # Skriv EXIF-data till filen
+                    file_path = Path(self.object.person.get_full_directory_path()) / self.object.relative_path
+                    if file_path.exists():
+                        if write_exif_data(file_path, exif_updates):
+                            messages.success(self.request, 'EXIF-data har uppdaterats')
+                        else:
+                            messages.warning(self.request, 'Kunde inte uppdatera EXIF-data')
+
+            except Exception as e:
+                messages.warning(self.request, f'Fel vid uppdatering av EXIF-data: {e}')
+
+        if not messages.get_messages(self.request):
+            messages.success(self.request, 'Dokumentet har uppdaterats!')
+
+        # Om filnamnet ändrades, spara explicit och redirecta
+        if filename_changed:
+            # Spara alla ändringar inklusive tags från formuläret
+            self.object.tags = form.cleaned_data.get('tags', '')
+            self.object.save()
+            # Redirecta till success_url
+            from django.http import HttpResponseRedirect
+            return HttpResponseRedirect(self.get_success_url())
+        else:
+            # Låt Django's standard form_valid hantera sparandet och redirect
+            return super().form_valid(form)
 
     def get_success_url(self):
         return reverse_lazy('documents:view', kwargs={'pk': self.object.pk})

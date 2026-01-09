@@ -84,10 +84,49 @@ class DocumentViewForm(forms.ModelForm):
         label='Källinformation'
     )
 
+    # EXIF-fält för bilder
+    exif_datetime = forms.CharField(
+        required=False,
+        label='Datum/Tid',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'YYYY:MM:DD HH:MM:SS'}),
+        help_text='Format: YYYY:MM:DD HH:MM:SS (t.ex. 2024:01:15 14:30:00)'
+    )
+    exif_datetime_original = forms.CharField(
+        required=False,
+        label='Originaldatum',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'YYYY:MM:DD HH:MM:SS'}),
+        help_text='När bilden togs'
+    )
+    exif_make = forms.CharField(
+        required=False,
+        label='Kameratillverkare',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    exif_model = forms.CharField(
+        required=False,
+        label='Kameramodell',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    exif_artist = forms.CharField(
+        required=False,
+        label='Fotograf',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    exif_copyright = forms.CharField(
+        required=False,
+        label='Copyright',
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    exif_description = forms.CharField(
+        required=False,
+        label='Bildbeskrivning',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+    )
+
     class Meta:
         model = Document
         fields = ['filename', 'tags']
         widgets = {
-            'filename': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'filename': forms.TextInput(attrs={'class': 'form-control'}),
             'tags': forms.TextInput(attrs={'class': 'form-control'}),
         }

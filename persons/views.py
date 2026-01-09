@@ -149,8 +149,10 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         person = self.object
 
-        # Hämta dokument för personen
-        documents = Document.objects.filter(person=person)
+        # Hämta dokument för personen (exkludera bilder - de visas i eget galleri)
+        documents = Document.objects.filter(person=person).exclude(
+            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp']
+        )
         context['documents'] = documents
 
         # Gruppera dokument per typ
@@ -162,9 +164,10 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
             documents_by_type[type_name].append(doc)
         context['documents_by_type'] = documents_by_type
 
-        # Statistik
-        context['total_documents'] = documents.count()
-        context['total_size'] = documents.aggregate(total=Sum('file_size'))['total'] or 0
+        # Statistik (alla dokument inklusive bilder)
+        all_documents = Document.objects.filter(person=person)
+        context['total_documents'] = all_documents.count()
+        context['total_size'] = all_documents.aggregate(total=Sum('file_size'))['total'] or 0
 
         # Add relationships
         all_relationships = person.get_all_relationships()
@@ -212,6 +215,11 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         context['is_bookmarked'] = BookmarkedPerson.objects.filter(
             user=self.request.user, person=person
         ).exists()
+
+        # Bildgalleri
+        images = person.get_images()
+        context['images'] = images
+        context['total_images'] = images.count()
 
         return context
 
@@ -1147,6 +1155,193 @@ class PersonDocumentSyncView(LoginRequiredMixin, View):
             )
 
         return redirect('persons:detail', pk=pk)
+
+
+class SetProfileImageView(LoginRequiredMixin, View):
+    """AJAX-endpoint för att sätta/ta bort huvudbild"""
+
+    def post(self, request, pk: int, document_pk: int) -> JsonResponse:
+        """Sätt en bild som huvudbild för personen"""
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+        document = get_object_or_404(Document, pk=document_pk, person=person)
+
+        # Validera att dokumentet är en bild
+        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Dokumentet är inte en bildfil'
+            }, status=400)
+
+        # Sätt som huvudbild
+        person.profile_image = document
+        person.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'"{document.filename}" är nu huvudbild'
+        })
+
+    def delete(self, request, pk: int) -> JsonResponse:
+        """Ta bort huvudbild för personen"""
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+
+        if person.profile_image:
+            person.profile_image = None
+            person.save()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Huvudbild borttagen'
+            })
+
+        return JsonResponse({
+            'success': False,
+            'error': 'Ingen huvudbild att ta bort'
+        }, status=400)
+
+
+class ImageUploadView(LoginRequiredMixin, View):
+    """Ladda upp en eller flera bilder för en person"""
+
+    def post(self, request, pk: int) -> HttpResponse:
+        """Hantera uppladdning av flera bilder"""
+        from documents.models import DocumentType
+
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+        files = request.FILES.getlist('images')
+
+        if not files:
+            messages.error(request, 'Inga filer valda för uppladdning.')
+            return redirect('persons:detail', pk=pk)
+
+        # Hämta DocumentType för bilder (standard: "bild")
+        # Försök först hitta "bild", annars leta efter en DocumentType med "bilder" i target_directory
+        doc_type = DocumentType.objects.filter(name='bild').first()
+        if not doc_type:
+            doc_type = DocumentType.objects.filter(
+                target_directory__icontains='bilder'
+            ).first()
+
+        if not doc_type:
+            messages.error(
+                request,
+                'Ingen dokumenttyp för bilder hittades. Skapa en dokumenttyp med namnet "bild" och target_directory "bilder".'
+            )
+            return redirect('persons:detail', pk=pk)
+
+        # Använd DocumentType's target_directory
+        image_dir_name = doc_type.target_directory
+
+        # Skapa bildkatalog om den inte finns
+        person_path = person.get_full_directory_path()
+        image_path = Path(person_path) / image_dir_name
+        image_path.mkdir(parents=True, exist_ok=True)
+
+        uploaded_count = 0
+        errors = []
+
+        for uploaded_file in files:
+            try:
+                # Validera att det är en bildfil
+                file_ext = uploaded_file.name.split('.')[-1].lower()
+                if file_ext not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+                    errors.append(f'{uploaded_file.name}: Inte en giltig bildfiltyp')
+                    continue
+
+                # Generera unikt filnamn om filen redan finns
+                filename = uploaded_file.name
+                file_path = image_path / filename
+                counter = 1
+                while file_path.exists():
+                    name_parts = filename.rsplit('.', 1)
+                    if len(name_parts) == 2:
+                        filename = f"{name_parts[0]}_{counter}.{name_parts[1]}"
+                    else:
+                        filename = f"{filename}_{counter}"
+                    file_path = image_path / filename
+                    counter += 1
+
+                # Spara filen
+                with open(file_path, 'wb+') as destination:
+                    for chunk in uploaded_file.chunks():
+                        destination.write(chunk)
+
+                # Skapa Document-post
+                relative_path = f"{image_dir_name}/{filename}"
+                document = Document(
+                    person=person,
+                    document_type=doc_type,
+                    filename=filename,
+                    relative_path=relative_path,
+                    file_size=file_path.stat().st_size,
+                    file_type=file_ext
+                )
+
+                # Sätt file.name till rätt sökväg från media root
+                # Format: persons/{person.directory_name}/{relative_path}
+                document.file.name = f"persons/{person.directory_name}/{relative_path}"
+
+                document.save()
+                uploaded_count += 1
+
+            except Exception as e:
+                errors.append(f'{uploaded_file.name}: {str(e)}')
+
+        # Skicka meddelanden till användaren
+        if uploaded_count > 0:
+            if uploaded_count == 1:
+                messages.success(request, f'1 bild uppladdad.')
+            else:
+                messages.success(request, f'{uploaded_count} bilder uppladdade.')
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+
+        return redirect('persons:detail', pk=pk)
+
+
+class ImageDeleteView(LoginRequiredMixin, View):
+    """Radera en bild via AJAX"""
+
+    def delete(self, request, pk: int, image_pk: int) -> JsonResponse:
+        """Radera en bild för personen"""
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+        document = get_object_or_404(Document, pk=image_pk, person=person)
+
+        # Validera att dokumentet är en bild
+        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Dokumentet är inte en bildfil'
+            }, status=400)
+
+        filename = document.filename
+
+        # Rensa profile_image om detta dokument är satt som profilbild
+        if person.profile_image and person.profile_image.id == document.id:
+            person.profile_image = None
+            person.save()
+
+        # Ta bort filen från filsystemet
+        try:
+            # Konstruera full sökväg till filen
+            file_path = Path(person.get_full_directory_path()) / document.relative_path
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Kunde inte ta bort filen: {str(e)}'
+            }, status=500)
+
+        # Ta bort Document-posten från databasen
+        document.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Bilden "{filename}" har tagits bort'
+        })
 
 
 class FamilyTreeView(LoginRequiredMixin, View):

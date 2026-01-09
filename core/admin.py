@@ -42,6 +42,8 @@ class SystemConfigAdmin(admin.ModelAdmin):
                 'eller relativ till projektets rotkatalog (t.ex. backups eller ../backups).</p>'
                 '<p><strong>OBS:</strong> Befintliga backup-filer flyttas inte automatiskt. '
                 'Kopiera manuellt befintliga backuper till den nya sökvägen om du ändrar den.</p>'
+                '<p><strong>Bildkatalog:</strong> Bildkatalogen konfigureras via Dokumenttyper. '
+                'Skapa eller redigera en dokumenttyp med target_directory="bilder" för att konfigurera var bilder lagras.</p>'
             )
         }),
     ]

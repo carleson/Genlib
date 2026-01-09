@@ -32,8 +32,16 @@ urlpatterns = [
 
 # Serve media files in development with dynamic media root
 if settings.DEBUG:
+    from core.models import SystemConfig
+    try:
+        config = SystemConfig.load()
+        media_name = config.media_directory_name
+    except Exception:
+        # Fallback om databasen inte är initierad
+        media_name = 'media'
+
     urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {
+        re_path(rf'^{media_name}/(?P<path>.*)$', serve, {
             'document_root': get_media_root(),
         }),
     ]

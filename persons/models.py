@@ -28,6 +28,15 @@ class Person(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Skapad")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Uppdaterad")
+    profile_image = models.ForeignKey(
+        'documents.Document',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='profile_for',
+        verbose_name="Profilbild",
+        help_text="Huvudbild för personen"
+    )
 
     class Meta:
         verbose_name = "Person"
@@ -56,6 +65,14 @@ class Person(models.Model):
         if self.birth_date and self.death_date:
             if self.death_date < self.birth_date:
                 raise ValidationError("Dödsdatum kan inte vara före födelsedatum.")
+
+        # Validera att profile_image är en bildfil
+        if self.profile_image and self.profile_image.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+            raise ValidationError("Profilbilden måste vara en bildfil (jpg, jpeg, png, gif, bmp).")
+
+        # Validera att profile_image tillhör denna person
+        if self.profile_image and self.profile_image.person != self:
+            raise ValidationError("Profilbilden måste tillhöra denna person.")
 
     def get_full_name(self):
         """Returnera fullständigt namn"""
@@ -126,6 +143,14 @@ class Person(models.Model):
         from core.utils import get_media_root
         import os
         return os.path.join(get_media_root(), self.get_directory_path())
+
+    def get_images(self):
+        """Returnera alla bilder för denna person"""
+        from documents.models import Document
+        return Document.objects.filter(
+            person=self,
+            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp']
+        ).order_by('-created_at')
 
     def get_all_relationships(self):
         """Return all relationships for this person"""

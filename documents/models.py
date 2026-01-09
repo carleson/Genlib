@@ -106,3 +106,22 @@ class Document(models.Model):
                 return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} TB"
+
+    def get_file_url(self):
+        """Returnera URL till filen med dynamisk media URL"""
+        from core.utils import get_media_url
+
+        # Om file.name är satt och korrekt, använd den
+        if self.file and self.file.name:
+            media_url = get_media_url()
+            # Normalisera URL (ta bort dubbelslash om det finns)
+            url = f"{media_url.rstrip('/')}/{self.file.name.lstrip('/')}"
+            return url
+
+        # Fallback: konstruera URL från person och relative_path
+        if self.person and self.relative_path:
+            media_url = get_media_url()
+            url = f"{media_url.rstrip('/')}/persons/{self.person.directory_name}/{self.relative_path.lstrip('/')}"
+            return url
+
+        return None

@@ -93,6 +93,12 @@ forskning/'''
                 'description': 'Utdrag från kyrkbok'
             },
             {
+                'name': 'bild',
+                'target_directory': 'bilder',
+                'filename': 'bild.jpg',
+                'description': 'Allmän bild'
+            },
+            {
                 'name': 'porträtt',
                 'target_directory': 'bilder/porträtt',
                 'filename': 'porträtt.jpg',
