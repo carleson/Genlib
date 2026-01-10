@@ -306,6 +306,12 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
     def get_initial(self):
         initial = super().get_initial()
 
+        # Sätt filnamnet från det faktiska filnamnet i filsystemet (från relative_path)
+        # Detta säkerställer att användaren ser det korrekta filnamnet även om det finns inkonsistens
+        from pathlib import Path
+        actual_filename = Path(self.object.relative_path).name
+        initial['filename'] = actual_filename
+
         # Läs in textfilinnehåll till formuläret
         if self.object.file_type in ['txt', 'md']:
             try:
@@ -323,7 +329,7 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
                 initial['file_content'] = f'Kunde inte läsa filen: {e}\nSökväg: {file_path if "file_path" in locals() else "okänd"}'
 
         # Läs EXIF-data för bilder
-        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
             try:
                 from pathlib import Path
                 from .exif_utils import read_exif_data, get_common_exif_fields
@@ -353,7 +359,7 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['is_text_file'] = self.object.file and self.object.file_type in ['txt', 'md']
         context['is_pdf'] = self.object.file and self.object.file_type == 'pdf'
-        context['is_image'] = self.object.file and self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']
+        context['is_image'] = self.object.file and self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
 
         # För bilder, lägg till personens information för auto-ifyllning av metadata
         if context['is_image']:
@@ -382,52 +388,71 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         from pathlib import Path
+        import os
+        import shutil
 
-        old_filename = self.object.filename
-        new_filename = form.cleaned_data.get('filename')
-        filename_changed = False
+        # Hämta det FAKTISKA filnamnet från filsystemet (från relative_path)
+        actual_filename_in_filesystem = Path(self.object.relative_path).name
+        new_filename = form.cleaned_data.get('filename', '').strip()
 
-        # Hantera filnamnsändring
-        if old_filename != new_filename:
+        # Validera att nya filnamnet inte är tomt
+        if not new_filename:
+            messages.error(self.request, 'Filnamn kan inte vara tomt')
+            return self.form_invalid(form)
+
+        # Hantera filnamnsändring - jämför med FAKTISKA filnamnet i filsystemet
+        if actual_filename_in_filesystem != new_filename:
+            # Säkerställ att filändelsen bevaras
+            old_ext = os.path.splitext(actual_filename_in_filesystem)[1]
+            new_ext = os.path.splitext(new_filename)[1]
+
+            # Om nya filnamnet saknar filändelse eller har fel filändelse, lägg till rätt en
+            if not new_ext or new_ext.lower() != old_ext.lower():
+                new_filename = os.path.splitext(new_filename)[0] + old_ext
+                messages.info(self.request, f'Filändelsen {old_ext} bevarades')
+
+            # Konstruera fullständiga sökvägar
+            base_dir = Path(self.object.person.get_full_directory_path())
+            old_relative = Path(self.object.relative_path)
+            old_full_path = base_dir / old_relative
+
+            # Nya sökvägen - samma katalog, nytt filnamn
+            new_relative = old_relative.parent / new_filename
+            new_full_path = base_dir / new_relative
+
+            # Kontrollera att gamla filen existerar
+            if not old_full_path.exists():
+                messages.error(self.request, f'Filen kunde inte hittas: {old_full_path}')
+                return self.form_invalid(form)
+
+            # Kontrollera att nya filen inte redan finns
+            if new_full_path.exists():
+                messages.error(self.request, f'En fil med namnet "{new_filename}" finns redan')
+                return self.form_invalid(form)
+
             try:
-                # Konstruera gamla sökvägen baserat på relative_path (den faktiska filen)
-                old_path = Path(self.object.person.get_full_directory_path()) / self.object.relative_path
+                # Döp om filen i filsystemet
+                shutil.move(str(old_full_path), str(new_full_path))
 
-                # Extrahera aktuellt filnamn från relative_path
-                actual_old_filename = Path(self.object.relative_path).name
+                # Verifiera att omdöpningen lyckades
+                if not new_full_path.exists():
+                    raise Exception("Filen kunde inte döpas om i filsystemet")
 
-                # Uppdatera relative_path med nya filnamnet
-                new_relative_path = str(Path(self.object.relative_path).parent / new_filename)
-                new_path = Path(self.object.person.get_full_directory_path()) / new_relative_path
+                # Uppdatera Document-objektets metadata
+                self.object.filename = new_filename
+                self.object.relative_path = str(new_relative)
+                self.object.file.name = f"persons/{self.object.person.directory_name}/{new_relative}"
 
-                # Debug-information
-                print(f"Omdöpning:")
-                print(f"  old_path: {old_path}")
-                print(f"  new_path: {new_path}")
-                print(f"  old_path exists: {old_path.exists()}")
-
-                # Byt namn på filen i filsystemet
-                if old_path.exists():
-                    # Först döp om filen fysiskt
-                    old_path.rename(new_path)
-                    print(f"  Filen har döpts om i filsystemet")
-
-                    # Uppdatera Document-objektet (men spara inte än, det görs senare)
-                    self.object.filename = new_filename
-                    self.object.relative_path = new_relative_path
-
-                    # Uppdatera file.name också
-                    self.object.file.name = f"persons/{self.object.person.directory_name}/{new_relative_path}"
-
-                    filename_changed = True
-                    messages.success(self.request, f'Filen har döpts om från "{actual_old_filename}" till "{new_filename}"')
-                else:
-                    messages.error(self.request, f'Filen kunde inte hittas: {old_path}')
-                    return self.form_invalid(form)
+                messages.success(self.request, f'Filen har döpts om från "{actual_filename_in_filesystem}" till "{new_filename}"')
 
             except Exception as e:
-                import traceback
-                traceback.print_exc()
+                # Om något gick fel, försök återställa
+                if new_full_path.exists() and not old_full_path.exists():
+                    try:
+                        shutil.move(str(new_full_path), str(old_full_path))
+                    except:
+                        pass
+
                 messages.error(self.request, f'Kunde inte döpa om filen: {e}')
                 return self.form_invalid(form)
 
@@ -451,7 +476,7 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
                     return self.form_invalid(form)
 
         # Hantera EXIF-data för bilder
-        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+        if self.object.file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
             try:
                 from .exif_utils import write_exif_data
 
@@ -481,20 +506,19 @@ class DocumentViewUpdateView(LoginRequiredMixin, UpdateView):
             except Exception as e:
                 messages.warning(self.request, f'Fel vid uppdatering av EXIF-data: {e}')
 
+        # Uppdatera tags
+        self.object.tags = form.cleaned_data.get('tags', '')
+
+        # Spara alla ändringar
+        self.object.save()
+
+        # Om inga specifika meddelanden ännu, lägg till generellt meddelande
         if not messages.get_messages(self.request):
             messages.success(self.request, 'Dokumentet har uppdaterats!')
 
-        # Om filnamnet ändrades, spara explicit och redirecta
-        if filename_changed:
-            # Spara alla ändringar inklusive tags från formuläret
-            self.object.tags = form.cleaned_data.get('tags', '')
-            self.object.save()
-            # Redirecta till success_url
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(self.get_success_url())
-        else:
-            # Låt Django's standard form_valid hantera sparandet och redirect
-            return super().form_valid(form)
+        # Redirecta till success_url
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse_lazy('documents:view', kwargs={'pk': self.object.pk})

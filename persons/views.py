@@ -151,7 +151,7 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
 
         # Hämta dokument för personen (exkludera bilder - de visas i eget galleri)
         documents = Document.objects.filter(person=person).exclude(
-            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp']
+            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
         )
         context['documents'] = documents
 
@@ -1166,7 +1166,7 @@ class SetProfileImageView(LoginRequiredMixin, View):
         document = get_object_or_404(Document, pk=document_pk, person=person)
 
         # Validera att dokumentet är en bild
-        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
             return JsonResponse({
                 'success': False,
                 'error': 'Dokumentet är inte en bildfil'
@@ -1244,7 +1244,7 @@ class ImageUploadView(LoginRequiredMixin, View):
             try:
                 # Validera att det är en bildfil
                 file_ext = uploaded_file.name.split('.')[-1].lower()
-                if file_ext not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+                if file_ext not in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
                     errors.append(f'{uploaded_file.name}: Inte en giltig bildfiltyp')
                     continue
 
@@ -1310,7 +1310,7 @@ class ImageDeleteView(LoginRequiredMixin, View):
         document = get_object_or_404(Document, pk=image_pk, person=person)
 
         # Validera att dokumentet är en bild
-        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+        if document.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
             return JsonResponse({
                 'success': False,
                 'error': 'Dokumentet är inte en bildfil'
@@ -1581,3 +1581,141 @@ def set_main_person(request, pk):
 
     messages.success(request, f"{person.get_full_name()} är nu angiven som huvudperson.")
     return redirect('persons:detail', pk=pk)
+
+
+class OpenFileExplorerView(LoginRequiredMixin, View):
+    """Öppnar systemets filutforskare för personens katalog (endast localhost)"""
+
+    def post(self, request, pk: int) -> JsonResponse:
+        """Öppna filutforskaren"""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        # Hämta person och validera ägare
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+        directory_path = Path(person.get_full_directory_path())
+
+        # Validera att katalogen existerar
+        if not directory_path.exists():
+            return JsonResponse({
+                'success': False,
+                'message': f'Katalogen finns inte: {directory_path}'
+            }, status=404)
+
+        if not directory_path.is_dir():
+            return JsonResponse({
+                'success': False,
+                'message': f'Sökvägen är inte en katalog: {directory_path}'
+            }, status=400)
+
+        # Öppna filutforskaren baserat på OS
+        try:
+            if sys.platform == 'win32':
+                # Windows
+                subprocess.Popen(['explorer', str(directory_path)])
+                message = 'Filutforskaren öppnad'
+            elif sys.platform == 'darwin':
+                # macOS
+                subprocess.Popen(['open', str(directory_path)])
+                message = 'Finder öppnad'
+            else:
+                # Linux - försök xdg-open först, sedan fallback till vanliga file managers
+                try:
+                    subprocess.Popen(['xdg-open', str(directory_path)])
+                    message = 'Filhanteraren öppnad'
+                except FileNotFoundError:
+                    # Fallback till vanliga Linux file managers
+                    file_managers = [
+                        'nautilus',  # GNOME
+                        'dolphin',   # KDE
+                        'thunar',    # XFCE
+                        'pcmanfm',   # LXDE
+                        'nemo',      # Cinnamon
+                    ]
+                    opened = False
+                    for fm in file_managers:
+                        try:
+                            subprocess.Popen([fm, str(directory_path)])
+                            message = f'{fm.capitalize()} öppnad'
+                            opened = True
+                            break
+                        except FileNotFoundError:
+                            continue
+
+                    if not opened:
+                        return JsonResponse({
+                            'success': False,
+                            'message': 'Kunde inte hitta någon filhanterare. Installera xdg-utils eller en av följande: ' + ', '.join(file_managers)
+                        }, status=500)
+
+            return JsonResponse({
+                'success': True,
+                'message': message
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Fel vid öppning av filutforskaren: {str(e)}'
+            }, status=500)
+
+
+class ListFilesView(LoginRequiredMixin, View):
+    """Listar filer i personens katalog (för remote access)"""
+
+    def get(self, request, pk: int) -> JsonResponse:
+        """Hämta fillista"""
+        from pathlib import Path
+
+        # Hämta person och validera ägare
+        person = get_object_or_404(Person, pk=pk, user=request.user)
+        directory_path = Path(person.get_full_directory_path())
+
+        # Validera att katalogen existerar
+        if not directory_path.exists():
+            return JsonResponse({
+                'success': False,
+                'message': f'Katalogen finns inte: {directory_path}'
+            }, status=404)
+
+        if not directory_path.is_dir():
+            return JsonResponse({
+                'success': False,
+                'message': f'Sökvägen är inte en katalog: {directory_path}'
+            }, status=400)
+
+        # Samla alla filer och undermappar (flat struktur)
+        files = []
+        try:
+            for item in sorted(directory_path.rglob('*')):
+                # Skippa dolda filer
+                if any(part.startswith('.') for part in item.parts):
+                    continue
+
+                try:
+                    stat = item.stat()
+                    relative_path = item.relative_to(directory_path)
+
+                    files.append({
+                        'name': item.name,
+                        'relative_path': str(relative_path),
+                        'is_dir': item.is_dir(),
+                        'size': stat.st_size if item.is_file() else 0,
+                        'modified': stat.st_mtime,
+                    })
+                except (OSError, PermissionError):
+                    # Skippa filer vi inte kan läsa
+                    continue
+
+            return JsonResponse({
+                'success': True,
+                'directory_path': str(directory_path),
+                'files': files
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Fel vid läsning av katalog: {str(e)}'
+            }, status=500)

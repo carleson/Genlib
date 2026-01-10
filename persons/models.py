@@ -67,8 +67,8 @@ class Person(models.Model):
                 raise ValidationError("Dödsdatum kan inte vara före födelsedatum.")
 
         # Validera att profile_image är en bildfil
-        if self.profile_image and self.profile_image.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
-            raise ValidationError("Profilbilden måste vara en bildfil (jpg, jpeg, png, gif, bmp).")
+        if self.profile_image and self.profile_image.file_type not in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+            raise ValidationError("Profilbilden måste vara en bildfil (jpg, jpeg, png, gif, bmp, webp).")
 
         # Validera att profile_image tillhör denna person
         if self.profile_image and self.profile_image.person != self:
@@ -149,7 +149,7 @@ class Person(models.Model):
         from documents.models import Document
         return Document.objects.filter(
             person=self,
-            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp']
+            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
         ).order_by('-created_at')
 
     def get_all_relationships(self):

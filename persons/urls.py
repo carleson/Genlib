@@ -9,7 +9,8 @@ from .views import (
     PersonRenameView, PersonDuplicateView, PersonExportView,
     PersonChronologicalReportView, PersonDocumentSyncView,
     SetProfileImageView, ImageUploadView, ImageDeleteView,
-    FamilyTreeView, toggle_bookmark, set_main_person
+    FamilyTreeView, toggle_bookmark, set_main_person,
+    OpenFileExplorerView, ListFilesView
 )
 
 app_name = 'persons'
@@ -69,4 +70,11 @@ urlpatterns = [
     path('<int:pk>/set-main-person/',
          set_main_person,
          name='set_main_person'),
+    # File browser
+    path('<int:pk>/open-file-explorer/',
+         OpenFileExplorerView.as_view(),
+         name='open_file_explorer'),
+    path('<int:pk>/list-files/',
+         ListFilesView.as_view(),
+         name='list_files'),
 ]

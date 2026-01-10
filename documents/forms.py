@@ -33,8 +33,8 @@ class DocumentForm(forms.ModelForm):
     file = forms.FileField(
         required=False,
         label='Fil',
-        help_text='Välj en bild eller dokument att ladda upp (jpg, png, pdf, txt, etc.)',
-        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf,.txt,.doc,.docx'})
+        help_text='Välj en bild eller dokument att ladda upp (jpg, png, webp, pdf, txt, etc.)',
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*,.webp,.pdf,.txt,.doc,.docx'})
     )
 
     class Meta:

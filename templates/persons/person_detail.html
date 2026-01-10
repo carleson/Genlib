@@ -149,7 +149,15 @@
                     <dd class="col-sm-9"><code>{{ person.directory_name }}</code></dd>
 
                     <dt class="col-sm-3">Katalogsökväg:</dt>
-                    <dd class="col-sm-9"><code class="text-primary">{{ person.get_full_directory_path }}</code></dd>
+                    <dd class="col-sm-9">
+                        <code class="text-primary">{{ person.get_full_directory_path }}</code>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary ms-2"
+                                onclick="openDirectoryBrowser({{ person.id }}, '{{ person.get_full_directory_path|escapejs }}')"
+                                title="Öppna katalog">
+                            <i class="bi bi-folder2-open"></i>
+                        </button>
+                    </dd>
 
                     <dt class="col-sm-3">Mall använd:</dt>
                     <dd class="col-sm-9">{{ person.template_used.name|default:"-" }}</dd>
@@ -592,6 +600,31 @@
     </div>
 </div>
 
+<!-- File Browser Modal -->
+<div class="modal fade" id="fileBrowserModal" tabindex="-1" aria-labelledby="fileBrowserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="fileBrowserModalLabel">
+                    <i class="bi bi-folder2-open"></i> Filbläddrare
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Stäng"></button>
+            </div>
+            <div class="modal-body" id="fileBrowserContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Laddar...</span>
+                    </div>
+                    <p class="mt-2">Hämtar filer...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Stäng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Auto-generera katalognamn i rename modal
 document.addEventListener('DOMContentLoaded', function() {
@@ -866,6 +899,171 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+// File browser functionality
+function isLocalhost() {
+    const hostname = window.location.hostname;
+    return hostname === 'localhost' ||
+           hostname === '127.0.0.1' ||
+           hostname === '::1' ||
+           hostname === '[::1]';
+}
+
+function openDirectoryBrowser(personId, directoryPath) {
+    if (isLocalhost()) {
+        // Localhost: Open system file explorer
+        openSystemFileExplorer(personId, directoryPath);
+    } else {
+        // Remote: Show modal with file list
+        showFileBrowserModal(personId, directoryPath);
+    }
+}
+
+function openSystemFileExplorer(personId, directoryPath) {
+    fetch(`/persons/${personId}/open-file-explorer/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show brief success notification
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 3000);
+        } else {
+            alert('Fel: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ett fel uppstod vid öppning av filutforskaren.');
+    });
+}
+
+function showFileBrowserModal(personId, directoryPath) {
+    const modal = new bootstrap.Modal(document.getElementById('fileBrowserModal'));
+    const content = document.getElementById('fileBrowserContent');
+
+    // Reset to loading state
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Laddar...</span>
+            </div>
+            <p class="mt-2">Hämtar filer...</p>
+        </div>
+    `;
+
+    modal.show();
+
+    // Fetch file list
+    fetch(`/persons/${personId}/list-files/`)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Kunde inte hämta filer');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.files.length === 0) {
+                content.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Inga filer hittades i katalogen.
+                    </div>
+                    <p class="text-muted"><strong>Sökväg:</strong> <code>${escapeHtml(data.directory_path)}</code></p>
+                `;
+                return;
+            }
+
+            // Build file list
+            let html = `
+                <div class="mb-3">
+                    <strong>Sökväg:</strong> <code class="text-primary">${escapeHtml(data.directory_path)}</code>
+                </div>
+                <div class="list-group" style="max-height: 500px; overflow-y: auto;">
+            `;
+
+            data.files.forEach(file => {
+                const icon = file.is_dir ? 'bi-folder-fill text-warning' : getFileIcon(file.name);
+                const sizeText = file.is_dir ? '&lt;DIR&gt;' : formatFileSize(file.size);
+                const modifiedDate = new Date(file.modified * 1000).toLocaleString('sv-SE');
+
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="flex-grow-1">
+                                <i class="bi ${icon} me-2"></i>
+                                <strong>${escapeHtml(file.name)}</strong>
+                                ${file.relative_path !== file.name ? `<br><small class="text-muted ms-4">${escapeHtml(file.relative_path)}</small>` : ''}
+                            </div>
+                            <div class="text-end text-muted small" style="min-width: 200px;">
+                                <div>${sizeText}</div>
+                                <div>${modifiedDate}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Fel:</strong> ${escapeHtml(error.message)}
+                </div>
+            `;
+        });
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+        'jpg': 'bi-file-earmark-image text-primary',
+        'jpeg': 'bi-file-earmark-image text-primary',
+        'png': 'bi-file-earmark-image text-primary',
+        'gif': 'bi-file-earmark-image text-primary',
+        'bmp': 'bi-file-earmark-image text-primary',
+        'webp': 'bi-file-earmark-image text-primary',
+        'pdf': 'bi-file-earmark-pdf text-danger',
+        'doc': 'bi-file-earmark-word text-primary',
+        'docx': 'bi-file-earmark-word text-primary',
+        'xls': 'bi-file-earmark-excel text-success',
+        'xlsx': 'bi-file-earmark-excel text-success',
+        'txt': 'bi-file-earmark-text text-secondary',
+        'zip': 'bi-file-earmark-zip text-warning',
+        'rar': 'bi-file-earmark-zip text-warning',
+    };
+    return iconMap[ext] || 'bi-file-earmark text-secondary';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 {% endblock %}

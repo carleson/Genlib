@@ -9,7 +9,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Hitta alla bilder
         images = Document.objects.filter(
-            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp']
+            file_type__in=['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
         )
 
         total = images.count()
